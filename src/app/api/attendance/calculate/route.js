@@ -74,9 +74,9 @@ function calculateDay(clocks, dailyRate, holidays) {
     // Parse times - extract hours/minutes directly to avoid timezone
     const inMatch = String(clocks.in).match(/(\d{2}):(\d{2})/);
     const outMatch = String(clocks.out).match(/(\d{2}):(\d{2})/);
-    const inHour = inMatch ? parseInt(inMatch[1]) : 8;
+    const inHour = inMatch ? (parseInt(inMatch[1]) + 8) % 24 : 8;
     const inMin = inMatch ? parseInt(inMatch[2]) : 0;
-    const outHour = outMatch ? parseInt(outMatch[1]) : 17;
+    const outHour = outMatch ? (parseInt(outMatch[1]) + 8) % 24 : 17;
     const outMin = outMatch ? parseInt(outMatch[2]) : 0;
 
     const inTime = new Date(2026, 0, 1, inHour, inMin, 0);
