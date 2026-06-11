@@ -72,8 +72,17 @@ function calculateDay(clocks, dailyRate, holidays) {
     }
     
     // Parse times
+    // Parse times - ADD timezone offset for Philippines (+8 hours)
     const inTime = new Date(clocks.in);
     const outTime = new Date(clocks.out);
+    
+    // ADD THIS: Adjust for timezone if the time seems like UTC (hours are 8 behind)
+    const inHour = inTime.getHours();
+    const expectedInHour = parseInt(clocks.in.toString().substring(11, 13));
+    if (inHour !== expectedInHour && expectedInHour >= 8 && expectedInHour <= 17) {
+        inTime.setHours(inTime.getHours() + 8);
+        outTime.setHours(outTime.getHours() + 8);
+    }
 
     // Auto-detect next day
     if (outTime < inTime) {
