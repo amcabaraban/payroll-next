@@ -34,7 +34,6 @@ function getHolidayRate(dateStr, holidays) {
 }
 
 function calculateDay(clocks, dailyRate, holidays) {
-    // Absent
     if (clocks.status === 'absent') {
         return { 
             status: 'Absent', regularPay: 0, overtimePay: 0, nightDiffPay: 0, 
@@ -43,7 +42,6 @@ function calculateDay(clocks, dailyRate, holidays) {
         };
     }
 
-    // AWOL and AWL = no pay
     if (clocks.status === 'awol' || clocks.status === 'awl') {
         return { 
             status: clocks.status === 'awol' ? 'AWOL' : 'AWL',
@@ -53,7 +51,6 @@ function calculateDay(clocks, dailyRate, holidays) {
         };
     }
 
-    // Leave types
     if (['VL', 'SL', 'EL', 'BL'].includes(clocks.status)) {
         return { 
             status: clocks.status, regularPay: dailyRate, overtimePay: 0, nightDiffPay: 0, 
@@ -62,7 +59,6 @@ function calculateDay(clocks, dailyRate, holidays) {
         };
     }
 
-    // RD Paid
     if (clocks.status === 'RD Paid') {
         return { 
             status: 'RD Paid', regularPay: dailyRate, overtimePay: 0, nightDiffPay: 0, 
@@ -71,27 +67,13 @@ function calculateDay(clocks, dailyRate, holidays) {
         };
     }
     
-   // Parse times from regex (already PH time from display fix)
-    const inMatch = String(clocks.in).match(/(\d{2}):(\d{2})/);
-    const outMatch = String(clocks.out).match(/(\d{2}):(\d{2})/);
-    const inHour = inMatch ? parseInt(inMatch[1]) : 8;
-    const inMin = inMatch ? parseInt(inMatch[2]) : 0;
-    const outHour = outMatch ? parseInt(outMatch[1]) : 17;
-    const outMin = outMatch ? parseInt(outMatch[2]) : 0;
+    const inTime = new Date(clocks.in);
+    const outTime = new Date(clocks.out);
 
-    // Add 8 hours for PH time conversion from UTC
-    const phInHour = (inHour + 8) % 24;
-    const phOutHour = (outHour + 8) % 24;
-
-    const inTime = new Date(2026, 0, 1, phInHour, inMin, 0);
-    const outTime = new Date(2026, 0, 1, phOutHour, outMin, 0);
-
-    // Auto-detect next day
     if (outTime < inTime) {
         outTime.setDate(outTime.getDate() + 1);
     }
 
-    // Check if out date is Sunday/Holiday
     const outDateStr = outTime.toISOString().split('T')[0];
     const isOutRestDay = isRestDay(outDateStr);
     const isOutHoliday = isHoliday(outDateStr, holidays);
@@ -102,10 +84,8 @@ function calculateDay(clocks, dailyRate, holidays) {
     const dateForCheck = new Date(clocks.date);
     const formattedDate = `${dateForCheck.getFullYear()}-${String(dateForCheck.getMonth() + 1).padStart(2, '0')}-${String(dateForCheck.getDate()).padStart(2, '0')}`;
 
-    // Holiday rate
     const holidayRate = getHolidayRate(formattedDate, holidays);
 
-    // ✅ FIXED: Late (skip for holidays)
     let lateHours = 0;
     if (holidayRate <= 1) {
         const shiftStart = new Date(inTime); 
@@ -113,7 +93,6 @@ function calculateDay(clocks, dailyRate, holidays) {
         lateHours = inTime > shiftStart ? (inTime - shiftStart) / (1000 * 60 * 60) : 0;
     }
 
-    // OT (after 6PM including grace)
     const shiftEnd = new Date(inTime); 
     shiftEnd.setHours(SHIFT_END, 0, 0, 0);
     let otHours = 0;
@@ -122,14 +101,12 @@ function calculateDay(clocks, dailyRate, holidays) {
         if (after > OT_GRACE_HOURS) otHours = Math.ceil(after - OT_GRACE_HOURS);
     }
 
-    // ✅ FIXED: Undertime (skip for holidays)
     let utHours = 0;
     if (holidayRate <= 1 && outTime < shiftEnd && hoursWorked < WORKING_HOURS) {
         utHours = WORKING_HOURS - hoursWorked;
         if (utHours < 0) utHours = 0;
     }
 
-    // Night Diff (10PM-6AM)
     let ndHours = 0;
     const ndStart = new Date(inTime); 
     ndStart.setHours(22, 0, 0, 0);
@@ -145,7 +122,6 @@ function calculateDay(clocks, dailyRate, holidays) {
     }
     if (ndHours > 8) ndHours = 8;
 
-    // OT Multiplier
     let otMultiplier = 1.25;
     if (isRestDay(formattedDate) || isOutRestDay) otMultiplier = 1.30;
     if (holidayRate > 1) otMultiplier = holidayRate;
@@ -154,14 +130,12 @@ function calculateDay(clocks, dailyRate, holidays) {
         if (outHolidayRate > 1) otMultiplier = Math.max(otMultiplier, outHolidayRate);
     }
 
-    // Pay computation
     const regularPay = dailyRate;
     const overtimePay = otHours * hourlyRate * otMultiplier;
     const nightDiffPay = ndHours * hourlyRate * 0.10;
     const lateDeduction = lateHours * hourlyRate;
     const utDeduction = utHours * hourlyRate;
 
-    // Holiday pay (additional)
     let holidayPay = 0;
     if (holidayRate > 1) {
         holidayPay = dailyRate * (holidayRate - 1);
@@ -214,7 +188,6 @@ export async function GET(request) {
         );
         if (!emp) return errorResponse('Employee not found');
 
-        // LOAN AUTO-DEDUCTION (1st cutoff only)
         const loanDeduction = { sss: 0, pagibig: 0, total: 0 };
 
         const firstDay = new Date(dateFrom).getDate();
@@ -241,7 +214,6 @@ export async function GET(request) {
             [userId, dateFrom, dateTo]
         );
 
-        // Group by date
         const daily = {};
         for (const r of records) {
             const rd = new Date(r.date);
@@ -255,7 +227,6 @@ export async function GET(request) {
             if (['VL', 'SL', 'EL', 'BL'].includes(r.status)) daily[d].status = r.status;
         }
 
-        // Generate all days in cutoff
         const allCutoffDays = [];
         const cur = new Date(dateFrom);
         const end = new Date(dateTo);
@@ -269,10 +240,8 @@ export async function GET(request) {
             cur.setDate(cur.getDate() + 1);
         }
 
-        // Daily rate
         const dailyRate = emp.salary_type === 'monthly' ? (Number(emp.salary) * 12) / 365 : Number(emp.salary);
 
-        // Calculate each day
         const calcs = [];
         for (const date of allCutoffDays) {
             const dayData = daily[date] || { date, in: null, out: null, status: 'present' };
@@ -305,15 +274,14 @@ export async function GET(request) {
                 const result = calculateDay({ ...dayData, in: clockIn, out: clockOut, date: date }, dailyRate, holidays);
                 calcs.push({
                     date: new Date(date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }),
-                    clockIn: dayData.in ? String(dayData.in).match(/\d{2}:\d{2}/)?.[0] || '-' : '-',
-                    clockOut: dayData.out ? String(dayData.out).match(/\d{2}:\d{2}/)?.[0] || '-' : '-',
+                    clockIn: dayData.in ? new Date(clockIn).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '-',
+                    clockOut: dayData.out ? new Date(clockOut).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '-',
                     ...result,
                     isHoliday: isHoliday(date, holidays), isRestDay: isRestDay(date)
                 });
             }
         }
 
-        // Summary
         const presentDays = calcs.filter(c => ['Present', 'VL', 'SL', 'EL', 'BL', 'RD Paid'].includes(c.status)).length;
         const absentDays = calcs.filter(c => c.status === 'Absent').length;
 
