@@ -126,6 +126,12 @@ export default function PayrollPage() {
         const calcs = payrollData.calculations;
         const deductions = computeDeductions(Number(payrollData.employee.salary), payrollData.employee.apply_tax);
         
+        // Fetch company settings
+        const settingsRes = await fetch('/api/company-settings');
+        const settingsData = await settingsRes.json();
+        const company = settingsData.data || {};
+
+
         // Get loan deductions
         const loanDeduction = sum.loanDeduction || { sss: 0, pagibig: 0, total: 0 };
         
@@ -174,11 +180,11 @@ export default function PayrollPage() {
 <body>
     <div class="header">
         <div class="logo">
-            <div class="logo-icon">PM</div>
+            <div class="logo-icon">${(company.company_name || 'PM').substring(0,2).toUpperCase()}</div>
             <div>
-                <h1>Payroll Management Inc.</h1>
-                <p>123 Business District, Makati City</p>
-                <p>Tel: (02) 8123-4567 | hr@payrollmgmt.com</p>
+                <h1>${company.company_name || 'Payroll Management Inc.'}</h1>
+                <p>${company.address || ''}</p>
+                <p>Tel: ${company.contact_no || ''} | ${company.email || ''}</p>
             </div>
         </div>
         <div style="text-align:end">
