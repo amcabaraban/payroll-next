@@ -398,13 +398,13 @@ export default function PayrollPage() {
                                                     </td>
                                                     <td className="p-2 text-center">{c.clockIn}</td>
                                                     <td className="p-2 text-center">{c.clockOut}</td>
-                                                    <td className="p-2 text-center">{c.totalHours}</td>
-                                                    <td className="p-2 text-center">{c.overtimeHours > 0 ? <span className="text-orange-600">{c.overtimeHours}h</span> : '-'}</td>
+                                                    <td className="p-2 text-center">{c.hours}</td>
+                                                    <td className="p-2 text-center">{c.otHours > 0 ? <span className="text-orange-600">{c.otHours}h</span> : '-'}</td>
                                                     <td className="p-2 text-center">{c.nightDiffHours > 0 ? <span className="text-indigo-600">{c.nightDiffHours}h</span> : '-'}</td>
                                                     <td className="p-2 text-right">{formatPHP(c.regularPay)}</td>
                                                     <td className="p-2 text-right">{c.overtimePay > 0 ? formatPHP(c.overtimePay) : '-'}</td>
-                                                    <td className="p-2 text-right text-indigo-600">{c.nightDiffPay > 0 ? formatPHP(c.nightDiffPay) : '-'}</td>
-                                                    <td className="p-2 text-right text-red-600">{c.totalDeductions > 0 ? formatPHP(c.totalDeductions) : '-'}</td>
+                                                    <td className="p-2 text-center">{c.ndHours > 0 ? <span className="text-indigo-600">{c.ndHours}h</span> : '-'}</td>
+                                                    <td className="p-2 text-right text-red-600">{c.deductions > 0 ? formatPHP(c.deductions) : '-'}</td>
                                                     <td className="p-2 text-right font-bold">{formatPHP(c.netPay)}</td>
                                                 </tr>
                                             ))}
@@ -414,7 +414,7 @@ export default function PayrollPage() {
                                                 <td colSpan="6" className="p-2 text-right">TOTALS:</td>
                                                 <td className="p-2 text-right">{formatPHP(payrollData.summary.totalRegularPay)}</td>
                                                 <td className="p-2 text-right">{formatPHP(payrollData.summary.totalOvertimePay)}</td>
-                                                <td className="p-2 text-right text-indigo-600">{formatPHP(payrollData.calculations.reduce((s, c) => s + (c.nightDiffPay || 0), 0))}</td>
+                                                <td className="p-2 text-right text-indigo-600">{formatPHP(payrollData.summary.totalNightDiffPay)}</td>
                                                 <td className="p-2 text-right text-red-600">{formatPHP(payrollData.summary.totalDeductions)}</td>
                                                 <td className="p-2 text-right text-green-700">{formatPHP(payrollData.summary.totalNetPay)}</td>
                                             </tr>
