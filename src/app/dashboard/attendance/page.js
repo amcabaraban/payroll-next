@@ -106,11 +106,10 @@ export default function AttendancePage() {
     const formatTimeForInput = (timestamp) => {
         if (!timestamp) return '';
         try {
-            const d = new Date(timestamp);
-            if (isNaN(d.getTime())) return '';
-            const hours = d.getHours().toString().padStart(2, '0');
-            const minutes = d.getMinutes().toString().padStart(2, '0');
-            return `${hours}:${minutes}`;
+            const str = String(timestamp);
+            const match = str.match(/(\d{2}):(\d{2})/);
+            if (match) return `${match[1]}:${match[2]}`;
+            return str.substring(11, 16);
         } catch (e) { return ''; }
     };
 
