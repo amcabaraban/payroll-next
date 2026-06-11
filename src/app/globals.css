@@ -1,26 +1,433 @@
 @import "tailwindcss";
 
+/* ========================================
+   CUSTOM INPUT STYLES - MAS VISIBLE
+   ======================================== */
+
+/* All input, select, textarea - darker border */
+/* All input, select, textarea - lighter border */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+input[type="search"],
+input[type="tel"],
+select,
+textarea {
+    border: 1.5px solid #d1d5db !important;
+    border-radius: 0.5rem !important;
+    padding: 0.625rem 0.75rem !important;
+    inline-size: 100%;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: #fff;
+}
+
+/* Hover - slightly darker */
+input:hover,
+select:hover,
+textarea:hover {
+    border-color: #9ca3af !important;
+}
+
+/* Focus - blue glow, thinner border */
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15) !important;
+}
+/* Disabled state */
+input:disabled,
+select:disabled,
+textarea:disabled {
+    background-color: #f3f4f6 !important;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Placeholder color */
+::placeholder {
+    color: #9ca3af !important;
+}
+
+/* Select dropdown arrow */
+select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding-inline-end: 2.5rem;
+}
+
+/* Radio buttons & checkboxes */
+input[type="radio"],
+input[type="checkbox"] {
+    inline-size: 1rem;
+    block-size: 1rem;
+    accent-color: #3b82f6;
+    border: 2px solid #9ca3af !important;
+    cursor: pointer;
+}
+
+/* Table styles */
+table {
+    border-collapse: collapse;
+}
+
+th {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    inline-size: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Modal animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.fixed.inset-0 > .bg-white {
+    animation: fadeIn 0.2s ease-out;
+}
+/* Text color - mas maitim para readable */
+input,
+select,
+textarea {
+    color: #1f2937 !important;
+    font-weight: 500 !important;
+}
+
+/* Placeholder text - lighter gray */
+::placeholder {
+    color: #9ca3af !important;
+    font-weight: 400 !important;
+}
+
+/* Value text (kapag may laman) */
+input:not(:placeholder-shown),
+textarea:not(:placeholder-shown) {
+    color: #111827 !important;
+    font-weight: 500 !important;
+}
+/* ========================================
+   TABLE STYLES - Light borders
+   ======================================== */
+
+table {
+    border-collapse: collapse;
+}
+
+/* Table headers */
+thead {
+    border-block-end: 2px solid #e5e7eb !important;
+}
+
+th {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-block-end: 1px solid #e5e7eb !important;
+}
+
+/* Table rows - very light border */
+tbody tr {
+    border-block-end: 1px solid #f3f4f6 !important;
+}
+
+tbody tr:hover {
+    background-color: #f9fafb !important;
+}
+
+/* Table cells */
+td, th {
+    border-inline-start: none !important;
+    border-inline-end: none !important;
+}
+
+/* Remove default table borders */
+.table, 
+table:not([class]) {
+    border: 1px solid #e5e7eb !important;
+}
+/* Print styles */
+@media print {
+    .no-print, .sidebar, header, nav, button, select, input[type="date"] { 
+        display: none !important; 
+    }
+    body { background: white !important; }
+    .shadow { box-shadow: none !important; }
+    table { font-size: 10px; }
+    th, td { padding: 2px 4px !important; }
+    .bg-yellow-50 { background: #fef9c3 !important; }
+    .bg-blue-50 { background: #eff6ff !important; }
+    @page { size: landscape; margin: 10mm; }
+}
+/* Light Mode (default) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+    --bg-primary: #f3f4f6;
+    --bg-white: #ffffff;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --border: #e5e7eb;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Dark Mode */
+.dark {
+    --tw-bg-opacity: 1;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark body {
+    background-color: #111827 !important;
+    color: #e5e7eb !important;
+}
+
+.dark .bg-white {
+    background-color: #1f2937 !important;
+}
+
+.dark .bg-gray-100 {
+    background-color: #111827 !important;
+}
+
+.dark .bg-gray-50 {
+    background-color: #1f2937 !important;
+}
+
+.dark .text-gray-700 {
+    color: #e5e7eb !important;
+}
+
+.dark .text-gray-500 {
+    color: #9ca3af !important;
+}
+
+.dark .text-gray-400 {
+    color: #9ca3af !important;
+}
+
+.dark .border, 
+.dark .border-b, 
+.dark .border-t {
+    border-color: #374151 !important;
+}
+
+.dark .shadow {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5) !important;
+}
+
+.dark .bg-blue-50 {
+    background-color: #1e3a5f !important;
+}
+
+.dark .bg-green-50 {
+    background-color: #14532d !important;
+}
+
+.dark .bg-red-50 {
+    background-color: #450a0a !important;
+}
+
+.dark .bg-yellow-50 {
+    background-color: #422006 !important;
+}
+
+.dark .hover\:bg-gray-50:hover {
+    background-color: #374151 !important;
+}
+
+.dark input, .dark select, .dark textarea {
+    background-color: #374151 !important;
+    color: #e5e7eb !important;
+    border-color: #4b5563 !important;
+}
+/* Gradient Theme */
+:root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-light: #3b82f6;
+    --secondary: #7c3aed;
+    --accent: #06b6d4;
+    --success: #059669;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --bg-gradient: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 50%, #ecfdf5 100%);
+    --sidebar-bg: linear-gradient(180deg, #003b3d 0%, #014749 100%);
+    --header-bg: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    background: var(--bg-gradient);
+    min-block-size: 100vh;
 }
+
+/* Sidebar Gradient */
+.sidebar-gradient {
+    background: var(--sidebar-bg) !important;
+}
+
+/* Header Gradient for cards */
+.header-gradient {
+    background: var(--header-bg);
+}
+
+/* Card hover effect */
+.card-hover {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+/* Button Gradient */
+.btn-primary {
+    background: linear-gradient(90deg, #2563eb, #7c3aed);
+    color: white;
+    border: none;
+    transition: opacity 0.2s;
+}
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+.btn-success {
+    background: linear-gradient(90deg, #059669, #10b981);
+    color: white;
+    border: none;
+}
+
+.btn-danger {
+    background: linear-gradient(90deg, #dc2626, #ef4444);
+    color: white;
+    border: none;
+}
+
+/* Table header */
+.table-header {
+    background: linear-gradient(90deg, #f8fafc, #f1f5f9);
+}
+
+/* Net Pay display */
+.net-pay-gradient {
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    border-radius: 12px;
+    padding: 24px;
+    color: white;
+    text-align: center;
+}
+
+/* Status badges */
+.badge-present { background: #dcfce7; color: #166534; }
+.badge-absent { background: #fef2f2; color: #991b1b; }
+.badge-awol { background: #fef2f2; color: #7f1d1d; font-weight: bold; }
+.badge-leave { background: #dbeafe; color: #1e40af; }
+.badge-holiday { background: #f3e8ff; color: #6b21a8; }
+
+/* Custom Teal/Cyan Theme */
+:root {
+    --color-primary: #097C87;
+    --color-primary-dark: #075e66;
+    --color-primary-light: #0d9eab;
+    --color-secondary: #23CED9;
+    --color-secondary-light: #5ddbe3;
+    --color-accent: #f59e0b;
+    
+
+    --header-bg: linear-gradient(90deg, #097C87 0%, #23CED9 100%);
+    --btn-primary: linear-gradient(90deg, #097C87, #23CED9);
+    --btn-success: linear-gradient(90deg, #059669, #23CED9);
+    --net-pay-bg: linear-gradient(135deg, #097C87, #23CED9);
+}
+
+/* Sidebar */
+.sidebar-gradient {
+    background: var(--sidebar-bg) !important;
+}
+
+/* Header */
+.header-gradient {
+    background: var(--header-bg);
+}
+
+/* Buttons */
+.btn-primary {
+    background: var(--btn-primary);
+    color: white;
+    border: none;
+}
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+/* Net Pay */
+.net-pay-gradient {
+    background: var(--net-pay-bg);
+    border-radius: 12px;
+    padding: 24px;
+    color: white;
+    text-align: center;
+}
+
+/* Stat Cards */
+.stat-teal { background: linear-gradient(135deg, #097C87, #0d9eab); color: white; }
+.stat-cyan { background: linear-gradient(135deg, #23CED9, #5ddbe3); color: #075e66; }
+.stat-dark { background: linear-gradient(135deg, #075e66, #097C87); color: white; }
+
+/* Badges */
+.badge-teal { background: #ccf2f4; color: #097C87; }
+.badge-cyan { background: #e0f7fa; color: #097C87; }
+
+/* Active menu item */
+.bg-blue-600 {
+    background: linear-gradient(90deg, #097C87, #23CED9) !important;
+}
+
+/* Table hover */
+.hover\:bg-gray-50:hover {
+    background-color: #e0f7fa !important;
+}
+
+/* Focus rings */
+input:focus, select:focus, textarea:focus {
+    border-color: #23CED9 !important;
+    box-shadow: 0 0 0 3px rgba(35, 206, 217, 0.2) !important;
+}
+
+/* Company blue text -> teal */
+.text-blue-600, .text-blue-500 {
+    color: #097C87 !important;
+}
+
+.bg-blue-600, .bg-blue-500 {
+    background: linear-gradient(90deg, #097C87, #23CED9) !important;
+}
+
+.bg-blue-50 {
+    background-color: #e0f7fa !important;
+}
+
+.border-blue-600, .border-blue-500 {
+    border-color: #097C87 !important;
+}
+
