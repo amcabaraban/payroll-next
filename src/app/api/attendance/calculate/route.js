@@ -71,13 +71,20 @@ function calculateDay(clocks, dailyRate, holidays) {
         };
     }
     
-   // Parse times for CALCULATION (use original UTC times)
-    const inTime = new Date(clocks.in);
-    const outTime = new Date(clocks.out);
-
-    // Parse times for DISPLAY only
+   // Parse times from regex (already PH time from display fix)
     const inMatch = String(clocks.in).match(/(\d{2}):(\d{2})/);
     const outMatch = String(clocks.out).match(/(\d{2}):(\d{2})/);
+    const inHour = inMatch ? parseInt(inMatch[1]) : 8;
+    const inMin = inMatch ? parseInt(inMatch[2]) : 0;
+    const outHour = outMatch ? parseInt(outMatch[1]) : 17;
+    const outMin = outMatch ? parseInt(outMatch[2]) : 0;
+
+    // Add 8 hours for PH time conversion from UTC
+    const phInHour = (inHour + 8) % 24;
+    const phOutHour = (outHour + 8) % 24;
+
+    const inTime = new Date(2026, 0, 1, phInHour, inMin, 0);
+    const outTime = new Date(2026, 0, 1, phOutHour, outMin, 0);
 
     // Auto-detect next day
     if (outTime < inTime) {
