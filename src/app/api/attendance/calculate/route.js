@@ -71,15 +71,16 @@ function calculateDay(clocks, dailyRate, holidays) {
         };
     }
     
-    // Parse times
-    const inTime = new Date(clocks.in);
-    const outTime = new Date(clocks.out);
+    // Parse times - extract hours/minutes directly to avoid timezone
+    const inMatch = String(clocks.in).match(/(\d{2}):(\d{2})/);
+    const outMatch = String(clocks.out).match(/(\d{2}):(\d{2})/);
+    const inHour = inMatch ? parseInt(inMatch[1]) : 8;
+    const inMin = inMatch ? parseInt(inMatch[2]) : 0;
+    const outHour = outMatch ? parseInt(outMatch[1]) : 17;
+    const outMin = outMatch ? parseInt(outMatch[2]) : 0;
 
-    // Adjust for UTC storage (add 8 hours for PH time)
-    if (process.env.NODE_ENV === 'production') {
-        inTime.setHours(inTime.getHours() + 8);
-        outTime.setHours(outTime.getHours() + 8);
-    }
+    const inTime = new Date(2026, 0, 1, inHour, inMin, 0);
+    const outTime = new Date(2026, 0, 1, outHour, outMin, 0);
 
     // Auto-detect next day
     if (outTime < inTime) {
