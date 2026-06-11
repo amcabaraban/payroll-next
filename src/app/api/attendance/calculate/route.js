@@ -71,11 +71,15 @@ function calculateDay(clocks, dailyRate, holidays) {
         };
     }
     
-    // Parse time manually to avoid timezone issues
-    const inStr = String(clocks.in);
-    const outStr = String(clocks.out);
-    const inTime = new Date(inStr.replace(' ', 'T') + '+08:00');
-    const outTime = new Date(outStr.replace(' ', 'T') + '+08:00');
+    // Parse times
+    const inTime = new Date(clocks.in);
+    const outTime = new Date(clocks.out);
+
+    // Adjust for UTC storage (add 8 hours for PH time)
+    if (process.env.NODE_ENV === 'production') {
+        inTime.setHours(inTime.getHours() + 8);
+        outTime.setHours(outTime.getHours() + 8);
+    }
 
     // Auto-detect next day
     if (outTime < inTime) {
