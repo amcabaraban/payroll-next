@@ -72,11 +72,10 @@ function calculateDay(clocks, dailyRate, holidays) {
     }
     
     // Parse time manually to avoid timezone issues
-    const inParts = String(clocks.in).match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
-    const outParts = String(clocks.out).match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
-    
-    const inTime = new Date(parseInt(inParts[1]), parseInt(inParts[2])-1, parseInt(inParts[3]), parseInt(inParts[4]), parseInt(inParts[5]));
-    const outTime = new Date(parseInt(outParts[1]), parseInt(outParts[2])-1, parseInt(outParts[3]), parseInt(outParts[4]), parseInt(outParts[5]));
+    const inStr = String(clocks.in);
+    const outStr = String(clocks.out);
+    const inTime = new Date(inStr.replace(' ', 'T') + '+08:00');
+    const outTime = new Date(outStr.replace(' ', 'T') + '+08:00');
 
     // Auto-detect next day
     if (outTime < inTime) {
