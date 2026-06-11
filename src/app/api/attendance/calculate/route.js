@@ -294,8 +294,8 @@ export async function GET(request) {
                 const result = calculateDay({ ...dayData, in: clockIn, out: clockOut, date: date }, dailyRate, holidays);
                 calcs.push({
                     date: new Date(date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }),
-                    clockIn: dayData.in ? new Date(clockIn).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '-',
-                    clockOut: dayData.out ? new Date(clockOut).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '-',
+                    clockIn: dayData.in ? String(dayData.in).substring(11, 16) : '-',
+                    clockOut: dayData.out ? String(dayData.out).substring(11, 16) : '-',
                     ...result,
                     isHoliday: isHoliday(date, holidays), isRestDay: isRestDay(date)
                 });
