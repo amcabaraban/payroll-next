@@ -13,12 +13,16 @@ export async function POST(request) {
 
         // Generate all days in cutoff
         const allCutoffDays = [];
-        const cur = new Date(date_from + 'T00:00:00');
-        const end = new Date(date_to + 'T00:00:00');
-        while (cur <= end) {
-            allCutoffDays.push(cur.toISOString().split('T')[0]);
+        const cur = new Date(date_from);
+        const endDate = new Date(date_to);
+        while (cur <= endDate) {
+            const yyyy = cur.getFullYear();
+            const mm = String(cur.getMonth() + 1).padStart(2, '0');
+            const dd = String(cur.getDate()).padStart(2, '0');
+            allCutoffDays.push(`${yyyy}-${mm}-${dd}`);
             cur.setDate(cur.getDate() + 1);
         }
+        
         const totalDays = allCutoffDays.length;
 
         for (const emp of employees) {
