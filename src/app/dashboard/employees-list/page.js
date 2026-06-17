@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import Pagination from '@/components/Pagination';
 
 export default function EmployeesListPage() {
     const [user, setUser] = useState(null);
@@ -20,6 +21,10 @@ export default function EmployeesListPage() {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [empToDelete, setEmpToDelete] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const [form, setForm] = useState({
         full_name: '', email: '', role: 'employee',
@@ -46,7 +51,10 @@ export default function EmployeesListPage() {
             if (filterDept) params.append('department', filterDept);
             const res = await fetch(`/api/employees?${params.toString()}`);
             const data = await res.json();
-            if (data.success) setEmployees(data.data);
+            if (data.success) {
+                setEmployees(data.data);
+                setCurrentPage(1);
+            }
         } catch (err) { console.error(err); }
     };
 
@@ -113,12 +121,17 @@ export default function EmployeesListPage() {
         admin: 'bg-red-100 text-red-700', hr: 'bg-blue-100 text-blue-700', employee: 'bg-green-100 text-green-700',
     })[role] || 'bg-gray-100 text-gray-700';
 
+    // Pagination logic
+    const totalPages = Math.ceil(employees.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedEmployees = employees.slice(startIndex, startIndex + itemsPerPage);
+
     if (!user) return null;
 
     return (
-        <div className="flex flex-col lg:flex-row min-h-screen bg-gray-100">
+        <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-gray-100">
             <Sidebar user={user} />
-            <div className="flex-1 w-full">
+            <div className="flex-1 overflow-y-auto w-full">
                 <header className="bg-white shadow-sm p-3 md:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                     <h2 className="text-base md:text-lg font-semibold text-gray-700">👥 Employees</h2>
                     <button onClick={() => { setEditingEmp(null); setForm({ full_name: '', email: '', role: 'employee', department: '', position: '', salary: '', phone: '', address: '', apply_tax: '1', salary_type: 'monthly', sss: '', philhealth_no: '', tin: '', pagibig_no: '', birthday: '', birthplace: '', marital_status: 'single', gender: 'Male', contact_no: '', emergency_contact: '', elementary: '', elementary_year: '', highschool: '', highschool_year: '', college: '', college_year: '', mother_name: '', father_name: '', spouse_name: '', dependents: '', skills: '' }); setShowModal(true); }}
@@ -130,9 +143,10 @@ export default function EmployeesListPage() {
                 <main className="p-3 md:p-6">
                     {message && <div className={`px-3 md:px-4 py-2 md:py-3 rounded mb-4 text-sm ${message.includes('✅') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{message}</div>}
 
+                    {/* Filters */}
                     <div className="bg-white rounded-lg shadow p-3 md:p-4 mb-4">
                         <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
-                            <input type="text" placeholder="🔍 Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 border rounded px-3 py-2 text-xs md:text-sm" />
+                            <input type="text" placeholder="🔍 Search by name, email..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 border rounded px-3 py-2 text-xs md:text-sm" />
                             <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="border rounded px-3 py-2 text-xs md:text-sm">
                                 <option value="">All Roles</option>
                                 <option value="admin">Admin</option><option value="hr">HR</option><option value="employee">Employee</option>
@@ -140,7 +154,28 @@ export default function EmployeesListPage() {
                         </div>
                     </div>
 
+                    {/* Table */}
                     <div className="bg-white rounded-lg shadow overflow-hidden">
+                        {/* Show entries */}
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-3 bg-gray-50 border-b">
+                            <p className="text-xs md:text-sm text-gray-500">
+                                Showing {employees.length > 0 ? startIndex + 1 : 0}-{Math.min(startIndex + itemsPerPage, employees.length)} of {employees.length} employees
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">Per page:</span>
+                                <select 
+                                    value={itemsPerPage} 
+                                    onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                                    className="border rounded px-2 py-1 text-xs"
+                                >
+                                    <option value="5">5</option>
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-[700px]">
                                 <thead className="bg-gray-50">
@@ -156,27 +191,38 @@ export default function EmployeesListPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {employees.map((emp) => (
-                                        <tr key={emp.id} className="border-b hover:bg-gray-50">
-                                            <td className="p-2 md:p-3 text-sm text-gray-500">{emp.id}</td>
-                                            <td className="p-2 md:p-3 text-sm font-medium">{emp.full_name}</td>
-                                            <td className="p-2 md:p-3 text-sm text-gray-500 hidden md:table-cell">{emp.email}</td>
-                                            <td className="p-2 md:p-3"><span className={`px-2 py-1 rounded text-xs capitalize ${getRoleBadge(emp.role)}`}>{emp.role}</span></td>
-                                            <td className="p-2 md:p-3 text-sm hidden sm:table-cell">{emp.department_name || emp.department || '-'}</td>
-                                            <td className="p-2 md:p-3 text-sm text-gray-500 hidden lg:table-cell">{emp.position_name || emp.position || '-'}</td>
-                                            <td className="p-2 md:p-3 text-sm text-right">₱{Number(emp.salary).toLocaleString()}</td>
-                                            <td className="p-2 md:p-3 text-center">
-                                                <button onClick={() => handleEdit(emp)} className="text-blue-600 hover:text-blue-800 mr-1 md:mr-2 text-sm">✏️</button>
-                                                <button onClick={() => handleDeleteClick(emp)} className="text-red-600 hover:text-red-800 text-sm">🗑️</button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {employees.length === 0 ? (
+                                        <tr><td colSpan="8" className="text-center p-8 text-gray-400">No employees found</td></tr>
+                                    ) : (
+                                        paginatedEmployees.map((emp) => (
+                                            <tr key={emp.id} className="border-b hover:bg-gray-50">
+                                                <td className="p-2 md:p-3 text-sm text-gray-500">{emp.id}</td>
+                                                <td className="p-2 md:p-3 text-sm font-medium">{emp.full_name}</td>
+                                                <td className="p-2 md:p-3 text-sm text-gray-500 hidden md:table-cell">{emp.email}</td>
+                                                <td className="p-2 md:p-3"><span className={`px-2 py-1 rounded text-xs capitalize ${getRoleBadge(emp.role)}`}>{emp.role}</span></td>
+                                                <td className="p-2 md:p-3 text-sm hidden sm:table-cell">{emp.department_name || emp.department || '-'}</td>
+                                                <td className="p-2 md:p-3 text-sm text-gray-500 hidden lg:table-cell">{emp.position_name || emp.position || '-'}</td>
+                                                <td className="p-2 md:p-3 text-sm text-right">₱{Number(emp.salary).toLocaleString()}</td>
+                                                <td className="p-2 md:p-3 text-center">
+                                                    <button onClick={() => handleEdit(emp)} className="text-blue-600 hover:text-blue-800 mr-1 md:mr-2 text-sm">✏️</button>
+                                                    <button onClick={() => handleDeleteClick(emp)} className="text-red-600 hover:text-red-800 text-sm">🗑️</button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Pagination */}
+                        <Pagination 
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={(page) => setCurrentPage(page)}
+                        />
                     </div>
 
-                    {/* Edit Modal */}
+                    {/* Edit/Add Modal */}
                     {showModal && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                             <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl p-4 md:p-6 max-h-[90vh] overflow-y-auto">
