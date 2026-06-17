@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { computeDeductions } from '@/lib/tax';
+const [allPayslips, setAllPayslips] = useState([]);
+const [showAllPayslips, setShowAllPayslips] = useState(false);
 
 export default function PayslipPage() {
     const [user, setUser] = useState(null);
@@ -64,6 +66,15 @@ export default function PayslipPage() {
             }
         } catch (err) { console.error(err); }
         setBulkLoading(false);
+    };
+
+    const fetchAllPayslips = async () => {
+        const res = await fetch(`/api/payslip/all?date_from=${dateFrom}&date_to=${dateTo}`);
+        const data = await res.json();
+        if (data.success) {
+            setAllPayslips(data.data);
+            setShowAllPayslips(true);
+        }
     };
 
     const generatePayslip = async () => {
@@ -344,7 +355,55 @@ export default function PayslipPage() {
                             </div>
                         </div>
                     </div>
-
+                    <div className="flex gap-2 mt-3">
+                        <button onClick={fetchAllPayslips} className="bg-gray-600 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">
+                            📋 View All Payslips
+                        </button>
+                        <button onClick={handleBulkPayslip} disabled={bulkLoading}
+                            className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">
+                            {bulkLoading ? '⏳' : '⚡'} Generate All
+                        </button>
+                    </div>
+                    {showAllPayslips && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] overflow-y-auto p-4 md:p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-semibold">📋 Payslips ({dateFrom} to {dateTo})</h3>
+                                    <button onClick={() => setShowAllPayslips(false)} className="text-gray-500 hover:text-gray-700 text-xl">✕</button>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[500px] text-sm">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="p-2 text-left">Employee</th>
+                                                <th className="p-2 text-right">Regular Pay</th>
+                                                <th className="p-2 text-right">OT Pay</th>
+                                                <th className="p-2 text-right">Gross Pay</th>
+                                                <th className="p-2 text-right">Deductions</th>
+                                                <th className="p-2 text-right font-bold">Net Pay</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {allPayslips.length === 0 ? (
+                                                <tr><td colSpan="6" className="text-center p-4 text-gray-400">No payslips found</td></tr>
+                                            ) : (
+                                                allPayslips.map((p, i) => (
+                                                    <tr key={i} className="border-b hover:bg-gray-50">
+                                                        <td className="p-2 font-medium">{p.full_name}</td>
+                                                        <td className="p-2 text-right">{formatPHP(p.regular_pay)}</td>
+                                                        <td className="p-2 text-right">{formatPHP(p.overtime_pay)}</td>
+                                                        <td className="p-2 text-right">{formatPHP(p.gross_pay)}</td>
+                                                        <td className="p-2 text-right text-red-600">{formatPHP(p.total_deductions)}</td>
+                                                        <td className="p-2 text-right font-bold text-green-700">{formatPHP(p.net_pay)}</td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}                  
                     {bulkResult && (
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
                             <p className="font-semibold text-green-700">
