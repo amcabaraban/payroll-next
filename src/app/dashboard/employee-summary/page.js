@@ -54,7 +54,7 @@ export default function EmployeeSummaryPage() {
     return (
         <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-gray-100">
             <Sidebar user={user} />
-            <div className="flex-1 overflow-y-auto w-full">
+            <div className="flex-1 w-full">
                 <header className="bg-white shadow-sm p-3 md:p-4">
                     <h2 className="text-base md:text-lg font-semibold text-gray-700">📊 Employee Master Record</h2>
                 </header>

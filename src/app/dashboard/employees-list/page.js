@@ -131,7 +131,7 @@ export default function EmployeesListPage() {
     return (
         <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-gray-100">
             <Sidebar user={user} />
-            <div className="flex-1 overflow-y-auto w-full">
+            <div className="flex-1 w-full">
                 <header className="bg-white shadow-sm p-3 md:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                     <h2 className="text-base md:text-lg font-semibold text-gray-700">👥 Employees</h2>
                     <button onClick={() => { setEditingEmp(null); setForm({ full_name: '', email: '', role: 'employee', department: '', position: '', salary: '', phone: '', address: '', apply_tax: '1', salary_type: 'monthly', sss: '', philhealth_no: '', tin: '', pagibig_no: '', birthday: '', birthplace: '', marital_status: 'single', gender: 'Male', contact_no: '', emergency_contact: '', elementary: '', elementary_year: '', highschool: '', highschool_year: '', college: '', college_year: '', mother_name: '', father_name: '', spouse_name: '', dependents: '', skills: '' }); setShowModal(true); }}
