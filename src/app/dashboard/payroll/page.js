@@ -311,6 +311,27 @@ export default function PayrollPage() {
                                     🖨️ Print Payslip
                                 </button>
                             )}
+                            <button onClick={handleBulkProcess} disabled={bulkLoading}
+                                className="bg-purple-600 text-white px-6 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">
+                                {bulkLoading ? '⏳ Processing...' : '⚡ Process All Employees'}
+                            </button>
+                            {bulkResult && (
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+                                    <p className="font-semibold text-green-700">
+                                        ✅ Processed: {bulkResult.processed} | Skipped: {bulkResult.skipped} | Total: {bulkResult.total}
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Period: {bulkResult.period?.from} to {bulkResult.period?.to}
+                                    </p>
+                                    <div className="mt-3 max-h-48 overflow-y-auto">
+                                        {bulkResult.results?.map((r, i) => (
+                                            <div key={i} className={`text-xs py-1 ${r.status === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                                                {r.status === 'success' ? '✅' : '❌'} {r.name} - Gross: ₱{r.gross?.toLocaleString()} | Net: ₱{r.net?.toLocaleString()}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
