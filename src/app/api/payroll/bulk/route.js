@@ -17,6 +17,14 @@ export async function POST(request) {
 
         for (const emp of employees) {
             try {
+                // Initialize all variables
+                let totalRegularPay = 0;
+                let totalOvertimePay = 0;
+                let totalNightDiffPay = 0;
+                let totalDeductions = 0;
+                let totalGross = 0;
+                let totalNet = 0;
+
                 const records = await query(
                     'SELECT * FROM attendance WHERE user_id = ? AND date >= ? AND date <= ?',
                     [emp.id, date_from, date_to]
@@ -68,7 +76,7 @@ export async function POST(request) {
                     regular_pay = VALUES(regular_pay), overtime_pay = VALUES(overtime_pay),
                     gross_pay = VALUES(gross_pay), total_deductions = VALUES(total_deductions),
                     net_pay = VALUES(net_pay)`,
-                    [emp.id, emp.full_name, date_from, date_to, totalRegularPay, totalOvertimePay, totalGross, totalDeductions, totalNet]
+                    [emp.id, emp.full_name, date_from, date_to, regularPay, otPay, grossPay, 0, netPay]
                 );
 
                 results.push({
