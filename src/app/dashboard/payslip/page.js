@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { computeDeductions } from '@/lib/tax';
 
-
-
 export default function PayslipPage() {
     const [user, setUser] = useState(null);
     const [employees, setEmployees] = useState([]);
@@ -15,10 +13,12 @@ export default function PayslipPage() {
     const [dateTo, setDateTo] = useState('');
     const [payslip, setPayslip] = useState(null);
     const [loading, setLoading] = useState(false);
-    const printRef = useRef();
-    const router = useRouter();
+    const [bulkLoading, setBulkLoading] = useState(false);
+    const [bulkResult, setBulkResult] = useState(null);
     const [allPayslips, setAllPayslips] = useState([]);
     const [showAllPayslips, setShowAllPayslips] = useState(false);
+    const printRef = useRef();
+    const router = useRouter();
 
     useEffect(() => {
         const userData = localStorage.getItem('user');
@@ -46,9 +46,6 @@ export default function PayslipPage() {
         const data = await res.json();
         if (data.success) setEmployees(data.data);
     };
-
-    const [bulkLoading, setBulkLoading] = useState(false);
-    const [bulkResult, setBulkResult] = useState(null);
 
     const handleBulkPayslip = async () => {
         if (!dateFrom || !dateTo) return;
