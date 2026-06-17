@@ -6,33 +6,41 @@ export async function POST(request) {
         const { date_from, date_to } = await request.json();
         if (!date_from || !date_to) return errorResponse('Date range is required');
 
+        // 1. Fetch all relevant employees
         const employees = await query("SELECT id, full_name, salary, salary_type FROM users WHERE role IN ('employee', 'hr')");
         
-        const results = [];
-        let processed = 0, skipped = 0;
-
-        // Generate all days in cutoff
-        const allCutoffDays = [];
-        const cur = new Date(date_from);
-        const endDate = new Date(date_to);
-        while (cur <= endDate) {
-            const yyyy = cur.getFullYear();
-            const mm = String(cur.getMonth() + 1).padStart(2, '0');
-            const dd = String(cur.getDate()).padStart(2, '0');
-            allCutoffDays.push(`${yyyy}-${mm}-${dd}`);
-            cur.setDate(cur.getDate() + 1);
+        if (!employees || employees.length === 0) {
+            return errorResponse('No employees found to process');
         }
-        
-        const totalDays = allCutoffDays.length;
 
+        // 2. Fetch ALL holidays for the cutoff ONCE
+        const holidays = await query("SELECT * FROM holidays WHERE date >= ? AND date <= ?", [date_from, date_to]);
+        const holidayDates = new Set(holidays.map(h => h.date));
+
+        // 3. Fetch ALL attendance records for the cutoff ONCE
+        const allAttendance = await query(
+            "SELECT * FROM attendance WHERE date >= ? AND date <= ?",
+            [date_from, date_to]
+        );
+
+        // 4. Group attendance records by user_id in memory (Hash Map for O(1) lookups)
+        const attendanceByUser = allAttendance.reduce((acc, record) => {
+            if (!acc[record.user_id]) acc[record.user_id] = [];
+            acc[record.user_id].push(record);
+            return acc;
+        }, {});
+
+        const results = [];
+        let processed = 0;
+        let skipped = 0;
+
+        // 5. Process each employee using the pre-fetched data
         for (const emp of employees) {
             try {
-                const records = await query(
-                    'SELECT * FROM attendance WHERE user_id = ? AND date >= ? AND date <= ?',
-                    [emp.id, date_from, date_to]
-                );
+                // Get attendance from our memory map instead of the database
+                const records = attendanceByUser[emp.id] || [];
 
-                                const monthlySalary = Number(emp.salary);
+                const monthlySalary = Number(emp.salary) || 0;
                 const dailyRate = (monthlySalary * 12) / 365;
                 const hourlyRate = dailyRate / 8;
 
@@ -41,10 +49,6 @@ export async function POST(request) {
                 let otPay = 0;
                 let ndPay = 0;
                 let holidayPay = 0;
-
-                const RD_DAYS = [0];
-                const holidays = await query("SELECT * FROM holidays WHERE date >= ? AND date <= ?", [date_from, date_to]);
-                const holidayDates = new Set(holidays.map(h => h.date));
 
                 const processedDates = new Set();
 
@@ -100,13 +104,13 @@ export async function POST(request) {
                     }
                 }
 
-                // CORRECT FORMULA: (monthly pay / 2) - (daily rate × absent days)
+                // Payroll Formula
                 const totalAbsences = absentCount + awlCount;
                 const regularPay = Math.max(0, (monthlySalary / 2) - (dailyRate * totalAbsences));
-
                 const grossPay = regularPay + otPay + ndPay + holidayPay;
-                const netPay = grossPay;
+                const netPay = grossPay; // Apply deductions here if needed in the future
 
+                // Upsert Payslip
                 await query(
                     `INSERT INTO payslips (user_id, full_name, period_from, period_to, regular_pay, overtime_pay, holiday_pay, night_diff_pay, gross_pay, total_deductions, net_pay)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -135,6 +139,7 @@ export async function POST(request) {
             processed, skipped, total: employees.length,
             period: { from: date_from, to: date_to }, results,
         }, `Processed ${processed} of ${employees.length}`);
+        
     } catch (error) {
         return errorResponse('Bulk error: ' + error.message);
     }
