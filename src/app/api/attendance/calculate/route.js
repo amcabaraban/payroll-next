@@ -283,11 +283,12 @@ export async function GET(request) {
         }
 
         const presentDays = calcs.filter(c => ['Present', 'VL', 'SL', 'EL', 'BL', 'RD Paid'].includes(c.status)).length;
+        const awlDays = calcs.filter(c => c.status === 'AWL').length;
         const absentDays = calcs.filter(c => c.status === 'Absent').length;
 
         let totalRegularPay;
         if (emp.salary_type === 'monthly') {
-            totalRegularPay = absentDays === 0 ? Number(emp.salary) / 2 : dailyRate * presentDays;
+            totalRegularPay = (absentDays === 0 && awlDays === 0) ? Number(emp.salary) / 2 : dailyRate * presentDays;
         } else {
             totalRegularPay = calcs.reduce((s, c) => s + c.regularPay, 0);
         }
