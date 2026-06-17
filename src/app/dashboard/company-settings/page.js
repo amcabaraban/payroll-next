@@ -69,7 +69,6 @@ export default function CompanySettingsPage() {
     return (
         <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-gray-100">
             <Sidebar user={user} />
-            <div className="flex-1 overflow-y-auto w-full"></div>
             <div className="flex-1">
                 <header className="bg-white shadow-sm p-4">
                     <h2 className="text-lg font-semibold text-gray-700">🏢 Company Settings</h2>
