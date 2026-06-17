@@ -43,6 +43,29 @@ export default function PayslipPage() {
         if (data.success) setEmployees(data.data);
     };
 
+    const [bulkLoading, setBulkLoading] = useState(false);
+    const [bulkResult, setBulkResult] = useState(null);
+
+    const handleBulkPayslip = async () => {
+        if (!dateFrom || !dateTo) return;
+        if (!confirm(`Generate payslips for ALL employees from ${dateFrom} to ${dateTo}?`)) return;
+        
+        setBulkLoading(true);
+        setBulkResult(null);
+        try {
+            const res = await fetch('/api/payroll/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date_from: dateFrom, date_to: dateTo }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setBulkResult(data.data);
+            }
+        } catch (err) { console.error(err); }
+        setBulkLoading(false);
+    };
+
     const generatePayslip = async () => {
         if (!selectedEmp || !dateFrom || !dateTo) return;
         setLoading(true);
@@ -314,9 +337,29 @@ export default function PayslipPage() {
                                     className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
                                     {loading ? '⏳' : '📄'} Generate
                                 </button>
+                                <button onClick={handleBulkPayslip} disabled={bulkLoading}
+                                    className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">
+                                    {bulkLoading ? '⏳ Processing...' : '⚡ Generate All'}
+                                </button>
                             </div>
                         </div>
                     </div>
+
+                    {bulkResult && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                            <p className="font-semibold text-green-700">
+                                ✅ Processed: {bulkResult.processed} | Total: {bulkResult.total}
+                            </p>
+                            <p className="text-xs text-gray-500">Period: {bulkResult.period?.from} to {bulkResult.period?.to}</p>
+                            <div className="mt-2 max-h-40 overflow-y-auto">
+                                {bulkResult.results?.map((r, i) => (
+                                    <div key={i} className={`text-xs py-1 ${r.status === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                                        {r.status === 'success' ? '✅' : '❌'} {r.name} - ₱{r.net?.toLocaleString()}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Payslip */}
                     {payslip && (
