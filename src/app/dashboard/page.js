@@ -3,14 +3,27 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import {
+    Chart as ChartJS,
+    ArcElement,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend,
+} from 'chart.js';
+import { Doughnut, Bar } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function DashboardPage() {
     const [user, setUser] = useState(null);
     const [employees, setEmployees] = useState([]);
     const [myPayslips, setMyPayslips] = useState([]);
+    const [attendanceStats, setAttendanceStats] = useState(null);
     const [search, setSearch] = useState('');
     const [filterRole, setFilterRole] = useState('');
-    const [filterDept, setFilterDept] = useState('');
     const router = useRouter();
 
     useEffect(() => {
@@ -21,6 +34,7 @@ export default function DashboardPage() {
         
         if (parsedUser.role === 'admin' || parsedUser.role === 'hr') {
             loadEmployees();
+            loadAttendanceStats();
         }
         
         if (parsedUser.role === 'employee') {
@@ -36,15 +50,22 @@ export default function DashboardPage() {
         } catch (err) { console.error(err); }
     };
 
-    const fetchEmployees = async () => {
+    const loadAttendanceStats = async () => {
         try {
-            const params = new URLSearchParams();
-            if (search) params.append('search', search);
-            if (filterRole) params.append('role', filterRole);
-            if (filterDept) params.append('department', filterDept);
-            const res = await fetch(`/api/employees?${params.toString()}`);
+            const now = new Date();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            const res = await fetch(`/api/attendance?date_from=${year}-${month}-01&date_to=${year}-${month}-15`);
             const data = await res.json();
-            if (data.success) setEmployees(data.data);
+            if (data.success) {
+                const records = data.data || [];
+                const present = records.filter(r => r.status === 'present').length;
+                const absent = records.filter(r => r.status === 'absent').length;
+                const awol = records.filter(r => r.status === 'awol').length;
+                const awl = records.filter(r => r.status === 'awl').length;
+                const leave = records.filter(r => ['VL','SL','EL','BL'].includes(r.status)).length;
+                setAttendanceStats({ present, absent, awol, awl, leave });
+            }
         } catch (err) { console.error(err); }
     };
 
@@ -59,57 +80,89 @@ export default function DashboardPage() {
     const formatPHP = (amount) => '₱' + Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2 });
     const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
 
+    // Chart data
+    const roleChartData = {
+        labels: ['Admin', 'HR', 'Employee'],
+        datasets: [{
+            data: [
+                employees.filter(e => e.role === 'admin').length,
+                employees.filter(e => e.role === 'hr').length,
+                employees.filter(e => e.role === 'employee').length,
+            ],
+            backgroundColor: ['#ef4444', '#3b82f6', '#10b981'],
+            borderWidth: 0,
+        }],
+    };
+
+    const deptChartData = {
+        labels: [...new Set(employees.map(e => e.department_name || e.department || 'N/A'))],
+        datasets: [{
+            label: 'Employees',
+            data: [...new Set(employees.map(e => e.department_name || e.department || 'N/A'))].map(
+                dept => employees.filter(e => (e.department_name || e.department) === dept).length
+            ),
+            backgroundColor: '#3b82f6',
+            borderRadius: 6,
+        }],
+    };
+
+    const attendanceChartData = attendanceStats ? {
+        labels: ['Present', 'Absent', 'AWOL', 'AWL', 'Leave'],
+        datasets: [{
+            data: [attendanceStats.present, attendanceStats.absent, attendanceStats.awol, attendanceStats.awl, attendanceStats.leave],
+            backgroundColor: ['#10b981', '#ef4444', '#991b1b', '#f59e0b', '#3b82f6'],
+            borderWidth: 0,
+        }],
+    } : null;
+
     if (!user) return null;
+
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } } },
+    };
 
     // EMPLOYEE VIEW
     if (user.role === 'employee') {
         return (
-            <div className="flex flex-col lg:flex-row min-h-screen bg-gray-100">
+            <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-gray-100">
                 <Sidebar user={user} />
-                <div className="flex-1 w-full">
-                    <header className="bg-white shadow-sm p-4">
-                        <h2 className="text-lg font-semibold text-gray-700">
-                            Welcome, {user.name}!
-                        </h2>
+                <div className="flex-1 overflow-y-auto w-full">
+                    <header className="bg-white shadow-sm p-3 md:p-4">
+                        <h2 className="text-base md:text-lg font-semibold text-gray-700">Welcome, {user.name}!</h2>
                     </header>
-                    <main className="p-4 md:p-6">
-                        {/* Quick Links */}
+                    <main className="p-3 md:p-6">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6">
                             <button onClick={() => router.push('/dashboard/attendance')}
                                 className="bg-white rounded-lg shadow p-4 md:p-6 hover:shadow-md transition text-center">
                                 <span className="text-2xl md:text-3xl">📋</span>
-                                <p className="font-semibold mt-2 text-sm md:text-base">My DTR</p>
-                                <p className="text-xs text-gray-400 hidden sm:block">View Attendance</p>
+                                <p className="font-semibold mt-2 text-sm">My DTR</p>
                             </button>
                             <button onClick={() => router.push('/dashboard/payslip')}
                                 className="bg-white rounded-lg shadow p-4 md:p-6 hover:shadow-md transition text-center">
                                 <span className="text-2xl md:text-3xl">📄</span>
-                                <p className="font-semibold mt-2 text-sm md:text-base">My Payslips</p>
-                                <p className="text-xs text-gray-400 hidden sm:block">View Salary</p>
+                                <p className="font-semibold mt-2 text-sm">My Payslips</p>
                             </button>
                             <div className="bg-white rounded-lg shadow p-4 md:p-6 text-center">
                                 <span className="text-2xl md:text-3xl">👤</span>
-                                <p className="font-semibold mt-2 text-sm md:text-base">My Profile</p>
+                                <p className="font-semibold mt-2 text-sm">My Profile</p>
                                 <p className="text-xs text-gray-400 truncate">{user.email}</p>
                             </div>
                         </div>
-
-                        {/* Recent Payslips */}
                         <div className="bg-white rounded-lg shadow overflow-hidden">
-                            <div className="p-4 border-b">
-                                <h3 className="font-semibold">📄 Recent Payslips</h3>
-                            </div>
+                            <div className="p-4 border-b"><h3 className="font-semibold">📄 Recent Payslips</h3></div>
                             {myPayslips.length === 0 ? (
                                 <div className="p-8 text-center text-gray-400">No payslips yet</div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[500px]">
+                                    <table className="w-full min-w-[400px]">
                                         <thead className="bg-gray-50">
                                             <tr>
                                                 <th className="p-2 md:p-3 text-left text-xs uppercase text-gray-500">Period</th>
-                                                <th className="p-2 md:p-3 text-right text-xs uppercase text-gray-500">Gross Pay</th>
+                                                <th className="p-2 md:p-3 text-right text-xs uppercase text-gray-500">Gross</th>
                                                 <th className="p-2 md:p-3 text-right text-xs uppercase text-gray-500">Deductions</th>
-                                                <th className="p-2 md:p-3 text-right text-xs uppercase text-gray-500">Net Pay</th>
+                                                <th className="p-2 md:p-3 text-right text-xs uppercase text-gray-500">Net</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -134,94 +187,85 @@ export default function DashboardPage() {
 
     // ADMIN / HR VIEW
     return (
-        <div className="flex flex-col lg:flex-row min-h-screen bg-gray-100">
+        <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-gray-100">
             <Sidebar user={user} />
-            <div className="flex-1 w-full">
-                <header className="bg-white shadow-sm p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                    <h2 className="text-lg font-semibold text-gray-700">
-                        Welcome back, {user.name?.split(' ')[0]}!
-                    </h2>
+            <div className="flex-1 overflow-y-auto w-full">
+                <header className="bg-white shadow-sm p-3 md:p-4">
+                    <h2 className="text-base md:text-lg font-semibold text-gray-700">Welcome back, {user.name?.split(' ')[0]}!</h2>
                 </header>
 
-                <main className="p-4 md:p-6">
-                    {/* Stats */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4 mb-6">
+                <main className="p-3 md:p-6">
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 mb-6">
                         <div className="bg-white rounded-lg shadow p-3 md:p-4">
-                            <p className="text-gray-500 text-xs md:text-sm">Total Employees</p>
-                            <p className="text-xl md:text-2xl font-bold text-gray-800">{employees.length}</p>
+                            <p className="text-gray-500 text-xs">Total Employees</p>
+                            <p className="text-xl md:text-2xl font-bold">{employees.length}</p>
                         </div>
                         <div className="bg-white rounded-lg shadow p-3 md:p-4">
-                            <p className="text-gray-500 text-xs md:text-sm">Admins</p>
-                            <p className="text-xl md:text-2xl font-bold text-gray-800">{employees.filter(e => e.role === 'admin').length}</p>
+                            <p className="text-gray-500 text-xs">Admins</p>
+                            <p className="text-xl md:text-2xl font-bold">{employees.filter(e => e.role === 'admin').length}</p>
                         </div>
                         <div className="bg-white rounded-lg shadow p-3 md:p-4">
-                            <p className="text-gray-500 text-xs md:text-sm">Departments</p>
-                            <p className="text-xl md:text-2xl font-bold text-gray-800">{new Set(employees.map(e => e.department)).size}</p>
+                            <p className="text-gray-500 text-xs">Departments</p>
+                            <p className="text-xl md:text-2xl font-bold">{new Set(employees.map(e => e.department)).size}</p>
+                        </div>
+                        <div className="bg-white rounded-lg shadow p-3 md:p-4">
+                            <p className="text-gray-500 text-xs">Avg Salary</p>
+                            <p className="text-xl md:text-2xl font-bold">
+                                {employees.length > 0 ? formatPHP(employees.reduce((s, e) => s + Number(e.salary), 0) / employees.length) : '₱0'}
+                            </p>
                         </div>
                     </div>
 
-                    {/* Search & Filter */}
-                    <div className="bg-white rounded-lg shadow p-3 md:p-4 mb-4">
-                        <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
-                            <input type="text" placeholder="🔍 Search..." value={search}
-                                onChange={(e) => { setSearch(e.target.value); fetchEmployees(); }}
-                                className="flex-1 border rounded px-3 py-2 text-sm w-full" />
-                            <select value={filterRole} onChange={(e) => { setFilterRole(e.target.value); fetchEmployees(); }}
-                                className="border rounded px-3 py-2 text-sm">
-                                <option value="">All Roles</option>
-                                <option value="admin">Admin</option>
-                                <option value="hr">HR</option>
-                                <option value="employee">Employee</option>
-                            </select>
+                    {/* Charts */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6">
+                        {/* Role Distribution */}
+                        <div className="bg-white rounded-lg shadow p-4 md:p-6">
+                            <h3 className="font-semibold text-sm md:text-base mb-4">👥 Employee Roles</h3>
+                            <div className="h-48 md:h-56">
+                                <Doughnut data={roleChartData} options={chartOptions} />
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Add Button */}
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
-                        <p className="text-sm text-gray-500">Showing {employees.length} employees</p>
-                        <button onClick={() => router.push('/dashboard/add-employee')}
-                            className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 w-full sm:w-auto text-center">
-                            + Add Employee
-                        </button>
-                    </div>
+                        {/* Department Distribution */}
+                        <div className="bg-white rounded-lg shadow p-4 md:p-6">
+                            <h3 className="font-semibold text-sm md:text-base mb-4">🏢 By Department</h3>
+                            <div className="h-48 md:h-56">
+                                <Bar data={deptChartData} options={{ ...chartOptions, indexAxis: 'y' }} />
+                            </div>
+                        </div>
 
-                    {/* Employee Table */}
-                    <div className="bg-white rounded-lg shadow overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[600px]">
-                                <thead className="bg-gray-50 border-b">
-                                    <tr>
-                                        <th className="text-left p-2 md:p-3 text-xs font-medium text-gray-500 uppercase">ID</th>
-                                        <th className="text-left p-2 md:p-3 text-xs font-medium text-gray-500 uppercase">Name</th>
-                                        <th className="text-left p-2 md:p-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Email</th>
-                                        <th className="text-left p-2 md:p-3 text-xs font-medium text-gray-500 uppercase">Role</th>
-                                        <th className="text-left p-2 md:p-3 text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Dept</th>
-                                        <th className="text-right p-2 md:p-3 text-xs font-medium text-gray-500 uppercase">Salary</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {employees.length === 0 ? (
-                                        <tr><td colSpan="6" className="text-center p-8 text-gray-400">No employees found</td></tr>
-                                    ) : (
-                                        employees.map((emp) => (
-                                            <tr key={emp.id} className="border-b hover:bg-gray-50">
-                                                <td className="p-2 md:p-3 text-sm text-gray-500">#{emp.id}</td>
-                                                <td className="p-2 md:p-3 text-sm font-medium">{emp.full_name}</td>
-                                                <td className="p-2 md:p-3 text-sm text-gray-500 hidden md:table-cell">{emp.email}</td>
-                                                <td className="p-2 md:p-3">
-                                                    <span className={`px-2 py-1 rounded text-xs capitalize ${
-                                                        emp.role === 'admin' ? 'bg-red-100 text-red-700' :
-                                                        emp.role === 'hr' ? 'bg-blue-100 text-blue-700' :
-                                                        'bg-green-100 text-green-700'
-                                                    }`}>{emp.role}</span>
-                                                </td>
-                                                <td className="p-2 md:p-3 text-sm hidden sm:table-cell">{emp.department_name || emp.department || '-'}</td>
-                                                <td className="p-2 md:p-3 text-sm text-right font-medium">₱{Number(emp.salary).toLocaleString()}</td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                        {/* Attendance Overview */}
+                        {attendanceChartData && (
+                            <div className="bg-white rounded-lg shadow p-4 md:p-6">
+                                <h3 className="font-semibold text-sm md:text-base mb-4">📋 Attendance This Cutoff</h3>
+                                <div className="h-48 md:h-56">
+                                    <Doughnut data={attendanceChartData} options={chartOptions} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Salary Overview */}
+                        <div className="bg-white rounded-lg shadow p-4 md:p-6">
+                            <h3 className="font-semibold text-sm md:text-base mb-4">💰 Salary Range</h3>
+                            <div className="space-y-3">
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1"><span>₱0 - ₱20k</span><span>{employees.filter(e => Number(e.salary) <= 20000).length}</span></div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{width: employees.length > 0 ? (employees.filter(e => Number(e.salary) <= 20000).length / employees.length * 100) + '%' : '0%'}}></div></div>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1"><span>₱20k - ₱50k</span><span>{employees.filter(e => Number(e.salary) > 20000 && Number(e.salary) <= 50000).length}</span></div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{width: employees.length > 0 ? (employees.filter(e => Number(e.salary) > 20000 && Number(e.salary) <= 50000).length / employees.length * 100) + '%' : '0%'}}></div></div>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1"><span>₱50k - ₱100k</span><span>{employees.filter(e => Number(e.salary) > 50000 && Number(e.salary) <= 100000).length}</span></div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-orange-500 h-2 rounded-full" style={{width: employees.length > 0 ? (employees.filter(e => Number(e.salary) > 50000 && Number(e.salary) <= 100000).length / employees.length * 100) + '%' : '0%'}}></div></div>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1"><span>₱100k+</span><span>{employees.filter(e => Number(e.salary) > 100000).length}</span></div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-purple-500 h-2 rounded-full" style={{width: employees.length > 0 ? (employees.filter(e => Number(e.salary) > 100000).length / employees.length * 100) + '%' : '0%'}}></div></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </main>
