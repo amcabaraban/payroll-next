@@ -12,18 +12,35 @@ export async function GET(request) {
         const emp = await getRow('SELECT id, full_name, salary, salary_type FROM users WHERE id = ?', [userId]);
         if (!emp) return errorResponse('Employee not found');
 
-        // Get all payslips for the year
+        const monthlySalary = Number(emp.salary);
+        
+        // Get payslips for the year
         const payslips = await query(
             'SELECT SUM(regular_pay) as total_regular, SUM(gross_pay) as total_gross FROM payslips WHERE user_id = ? AND YEAR(period_from) = ?',
             [userId, year]
         );
 
-        const totalBasic = payslips[0]?.total_regular || 0;
+        // Get total basic pay from payslips
+        const totalBasicFromPayslips = payslips[0]?.total_regular || 0;
+        
+        // Count how many months have payslips
+        const monthsWithPayslips = await query(
+            'SELECT COUNT(DISTINCT MONTH(period_from)) as months FROM payslips WHERE user_id = ? AND YEAR(period_from) = ?',
+            [userId, year]
+        );
+        
+        const monthsCount = monthsWithPayslips[0]?.months || 0;
+        
+        // If less than 12 months, calculate remaining based on monthly salary
+        const remainingMonths = 12 - monthsCount;
+        const estimatedTotal = totalBasicFromPayslips + (monthlySalary * remainingMonths / 2); // /2 because each payslip is half-month
+        
+        const totalBasic = monthsCount > 0 ? Math.max(estimatedTotal, monthlySalary * 12) : monthlySalary * 12;
         const thirteenthMonth = totalBasic / 12;
 
         return successResponse({
             employee: emp,
-            year: year,
+            year: parseInt(year),
             totalBasicPay: Math.round(totalBasic * 100) / 100,
             thirteenthMonthPay: Math.round(thirteenthMonth * 100) / 100,
         });
@@ -31,6 +48,7 @@ export async function GET(request) {
         return errorResponse('Failed to compute 13th month: ' + error.message);
     }
 }
+
 // POST - Save 13th month record
 export async function POST(request) {
     try {
