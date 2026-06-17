@@ -505,10 +505,12 @@ export default function PayslipPage() {
                                         className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
                                         🖨️ Print Payslip
                                     </button>
-                                    <button onClick={handleEmailPayslip} disabled={!payslip}
-                                        className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
-                                        📧 Email Payslip
-                                    </button>
+                                    {(user?.role === 'admin' || user?.role === 'hr') && (
+                                        <button onClick={handleEmailPayslip} disabled={!payslip}
+                                            className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
+                                            📧 Email Payslip
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
