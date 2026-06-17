@@ -86,81 +86,81 @@ export default function Sidebar({ user }) {
         router.push(path);
     };
 
-    return (
-        <>
-            {/* Mobile Hamburger Button */}
-            <button 
-                onClick={() => setMobileOpen(!mobileOpen)}
-                className="lg:hidden fixed top-3 left-3 z-[60] bg-gray-900 text-white w-10 h-10 rounded-lg shadow-lg flex items-center justify-center text-lg hover:bg-gray-800 transition"
-                aria-label="Toggle menu"
-            >
-                {mobileOpen ? '✕' : '☰'}
-            </button>
+return (
+    <>
+        {/* Mobile Hamburger Button */}
+        <button 
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="lg:hidden fixed top-3 left-3 z-[60] bg-gray-900 text-white w-10 h-10 rounded-lg shadow-lg flex items-center justify-center text-lg hover:bg-gray-800 transition"
+            aria-label="Toggle menu"
+        >
+            {mobileOpen ? '✕' : '☰'}
+        </button>
 
-            {/* Mobile Overlay */}
-            {mobileOpen && (
-                <div 
-                    className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[45] transition-opacity"
-                    onClick={closeMobile}
-                />
+        {/* Mobile Overlay */}
+        {mobileOpen && (
+            <div 
+                className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[45] transition-opacity"
+                onClick={closeMobile}
+            />
+        )}
+
+        {/* Sidebar */}
+        <div className={`w-64 bg-gray-900 text-white h-screen flex flex-col fixed lg:sticky top-0 left-0 z-50 transition-transform duration-300 ease-in-out ${
+            mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}>
+            {/* Logo - Fixed at top */}
+            <div className="p-5 border-b border-gray-700 text-center flex-shrink-0">
+                <h1 className="text-md font-bold text-cyan-300">Employee Information<br/>& Payroll</h1>
+                <p className="text-xs font-bold text-gray-400 mt-1">Management System</p>
+            </div>
+
+            {/* User Info - Fixed */}
+            {user && (
+                <div className="p-4 border-b border-gray-700 flex-shrink-0">
+                    <p className="text-sm font-medium truncate">{user.name}</p>
+                    <p className="text-xs text-gray-400 capitalize">{user.role}</p>
+                </div>
             )}
 
-            {/* Sidebar */}
-            <div className={`w-64 bg-gray-900 text-white min-h-screen flex flex-col fixed lg:sticky top-0 left-0 z-50 transition-transform duration-300 ease-in-out overflow-y-auto ${
-                mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-            }`}>
-                {/* Logo */}
-                <div className="p-5 border-b border-gray-700 text-center">
-                    <h1 className="text-md font-bold text-cyan-300">Employee Information<br/>& Payroll</h1>
-                    <p className="text-xs font-bold text-gray-400 mt-1">Management System</p>
-                </div>
-
-                {/* User Info */}
-                {user && (
-                    <div className="p-4 border-b border-gray-700">
-                        <p className="text-sm font-medium truncate">{user.name}</p>
-                        <p className="text-xs text-gray-400 capitalize">{user.role}</p>
+            {/* Navigation - Scrollable */}
+            <nav className="flex-1 overflow-y-auto p-3">
+                {menuItems.map((section, idx) => (
+                    <div key={idx} className="mb-4">
+                        <p className="text-xs text-gray-500 uppercase px-3 mb-2">{section.title}</p>
+                        {section.items.map((item) => (
+                            <button
+                                key={item.name}
+                                onClick={() => handleNavClick(item.path)}
+                                className={`w-full flex items-center gap-3 px-3 py-2 rounded text-sm mb-1 transition ${
+                                    pathname === item.path
+                                        ? 'bg-blue-600 text-white'
+                                        : 'text-gray-300 hover:bg-gray-800'
+                                }`}
+                            >
+                                <span>{item.icon}</span>
+                                <span>{item.name}</span>
+                            </button>
+                        ))}
                     </div>
-                )}
+                ))}
+            </nav>
 
-                {/* Navigation */}
-                <nav className="flex-1 overflow-y-auto p-3">
-                    {menuItems.map((section, idx) => (
-                        <div key={idx} className="mb-4">
-                            <p className="text-xs text-gray-500 uppercase px-3 mb-2">{section.title}</p>
-                            {section.items.map((item) => (
-                                <button
-                                    key={item.name}
-                                    onClick={() => handleNavClick(item.path)}
-                                    className={`w-full flex items-center gap-3 px-3 py-2 rounded text-sm mb-1 transition ${
-                                        pathname === item.path
-                                            ? 'bg-blue-600 text-white'
-                                            : 'text-gray-300 hover:bg-gray-800'
-                                    }`}
-                                >
-                                    <span>{item.icon}</span>
-                                    <span>{item.name}</span>
-                                </button>
-                            ))}
-                        </div>
-                    ))}
-                </nav>
-
-                {/* Theme Toggle & Logout */}
-                <div className="p-3 border-t border-gray-700">
-                    <button onClick={toggleTheme}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800 transition mb-1">
-                        <span>{theme === 'light' ? '🌙' : '☀️'}</span>
-                        <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
-                    </button>
-                    
-                    <button onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-gray-300 hover:bg-red-600 transition">
-                        <span>🚪</span>
-                        <span>Logout</span>
-                    </button>
-                </div>
+            {/* Theme Toggle & Logout - Fixed at bottom */}
+            <div className="p-3 border-t border-gray-700 flex-shrink-0">
+                <button onClick={toggleTheme}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800 transition mb-1">
+                    <span>{theme === 'light' ? '🌙' : '☀️'}</span>
+                    <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
+                </button>
+                
+                <button onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-gray-300 hover:bg-red-600 transition">
+                    <span>🚪</span>
+                    <span>Logout</span>
+                </button>
             </div>
-        </>
-    );
+        </div>
+    </>
+);
 }
