@@ -63,8 +63,12 @@ export async function POST(request) {
 
                 await query(
                     `INSERT INTO payslips (user_id, full_name, period_from, period_to, regular_pay, overtime_pay, gross_pay, total_deductions, net_pay)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [emp.id, emp.full_name, date_from, date_to, regularPay, otPay, grossPay, 0, netPay]
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                    regular_pay = VALUES(regular_pay), overtime_pay = VALUES(overtime_pay),
+                    gross_pay = VALUES(gross_pay), total_deductions = VALUES(total_deductions),
+                    net_pay = VALUES(net_pay)`,
+                    [emp.id, emp.full_name, date_from, date_to, totalRegularPay, totalOvertimePay, totalGross, totalDeductions, totalNet]
                 );
 
                 results.push({
