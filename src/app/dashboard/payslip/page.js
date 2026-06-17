@@ -347,6 +347,10 @@ export default function PayslipPage() {
                                     className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
                                     {loading ? '⏳' : '📄'} Generate
                                 </button>
+                                <button onClick={handleBulkPayslip} disabled={bulkLoading}
+                                    className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">
+                                    {bulkLoading ? '⏳ Processing...' : '⚡ Generate All'}
+                                </button>
                             </div>
                         </div>
                     </div>
