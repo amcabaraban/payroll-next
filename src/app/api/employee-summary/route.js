@@ -52,8 +52,7 @@ export async function GET(request) {
                 SUM(CASE WHEN status = 'awl' THEN 1 ELSE 0 END) as awl_days,
                 SUM(CASE WHEN status IN ('VL','SL','EL','BL') THEN 1 ELSE 0 END) as leave_days,
                 SUM(CASE WHEN status = 'holiday' THEN 1 ELSE 0 END) as holiday_days
-            FROM attendance 
-            WHERE user_id = ? AND YEAR(date) = ?
+            FROM (SELECT DISTINCT date, status FROM attendance WHERE user_id = ? AND YEAR(date) = ?) as distinct_days
             GROUP BY cutoff
             ORDER BY cutoff DESC
         `, [userId, year]);
