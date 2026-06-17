@@ -33,71 +33,72 @@ export async function POST(request) {
                 const hourlyRate = dailyRate / 8;
 
                 let absentCount = 0;
+                let awlCount = 0;
                 let otPay = 0;
                 let ndPay = 0;
                 let holidayPay = 0;
 
-                const RD_DAYS = [0]; // Sunday
+                const RD_DAYS = [0];
                 const holidays = await query("SELECT * FROM holidays WHERE date >= ? AND date <= ?", [date_from, date_to]);
                 const holidayDates = new Set(holidays.map(h => h.date));
 
-                // Process each attendance record
+                const processedDates = new Set();
+
                 for (const r of records) {
-                    // Count absences
-                    if (r.status === 'absent' || r.status === 'awol' || r.status === 'awl') {
-                        absentCount++;
-                        continue;
+                    // Count absences (unique per date)
+                    if (!processedDates.has(r.date)) {
+                        if (r.status === 'absent' || r.status === 'awol') {
+                            absentCount++;
+                            processedDates.add(r.date);
+                        } else if (r.status === 'awl') {
+                            awlCount++;
+                            processedDates.add(r.date);
+                        }
                     }
-                    
-                    // Skip if no timestamp
-                    if (!r.timestamp) continue;
+
+                    if (!r.timestamp || r.type === 'in') continue;
 
                     const date = r.date;
                     const isRestDay = new Date(date + 'T00:00:00').getDay() === 0;
                     const isHoliday = holidayDates.has(date);
                     const holidayRate = isHoliday ? 2.0 : 1.0;
 
-                    if (r.type === 'in') continue; // Skip IN records for pay calc
+                    const outTime = new Date(r.timestamp);
+                    const shiftEnd = new Date(r.timestamp);
+                    shiftEnd.setHours(17, 0, 0, 0);
 
-                    if (r.type === 'out') {
-                        const outTime = new Date(r.timestamp);
-                        const shiftEnd = new Date(r.timestamp);
-                        shiftEnd.setHours(17, 0, 0, 0);
-
-                        // OT Pay (after 5PM, 1hr grace)
-                        if (outTime > shiftEnd) {
-                            const otHours = Math.ceil(((outTime - shiftEnd) / (1000 * 60 * 60)) - 1);
-                            if (otHours > 0) {
-                                let otMultiplier = 1.25;
-                                if (isRestDay) otMultiplier = 1.30;
-                                if (isHoliday) otMultiplier = holidayRate;
-                                otPay += otHours * hourlyRate * otMultiplier;
-                            }
-                        }
-
-                        // Night Diff (10PM-6AM)
-                        const ndStart = new Date(r.timestamp);
-                        ndStart.setHours(22, 0, 0, 0);
-                        if (outTime > ndStart) {
-                            const ndEnd = new Date(r.timestamp);
-                            ndEnd.setDate(ndEnd.getDate() + 1);
-                            ndEnd.setHours(6, 0, 0, 0);
-                            const ndEndTime = outTime < ndEnd ? outTime : ndEnd;
-                            const ndHours = Math.min((ndEndTime - ndStart) / (1000 * 60 * 60), 8);
-                            if (ndHours > 0) ndPay += ndHours * hourlyRate * 0.10;
+                    // OT Pay
+                    if (outTime > shiftEnd) {
+                        const otHours = Math.ceil(((outTime - shiftEnd) / (1000 * 60 * 60)) - 1);
+                        if (otHours > 0) {
+                            let otMultiplier = 1.25;
+                            if (isRestDay) otMultiplier = 1.30;
+                            if (isHoliday) otMultiplier = holidayRate;
+                            otPay += otHours * hourlyRate * otMultiplier;
                         }
                     }
 
-                    // Holiday Pay (additional)
+                    // Night Diff
+                    const ndStart = new Date(r.timestamp);
+                    ndStart.setHours(22, 0, 0, 0);
+                    if (outTime > ndStart) {
+                        const ndEnd = new Date(r.timestamp);
+                        ndEnd.setDate(ndEnd.getDate() + 1);
+                        ndEnd.setHours(6, 0, 0, 0);
+                        const ndEndTime = outTime < ndEnd ? outTime : ndEnd;
+                        const ndHours = Math.min((ndEndTime - ndStart) / (1000 * 60 * 60), 8);
+                        if (ndHours > 0) ndPay += ndHours * hourlyRate * 0.10;
+                    }
+
+                    // Holiday Pay
                     if (isHoliday && holidayRate > 1) {
                         holidayPay += dailyRate * (holidayRate - 1);
                     }
                 }
 
-                // Regular Pay = half month - (absent days × daily rate)
-                const halfMonthPay = monthlySalary / 2;
-                const absentDeduction = absentCount * dailyRate;
-                const regularPay = Math.max(0, halfMonthPay - absentDeduction);
+                // CORRECT FORMULA: (monthly pay / 2) - (daily rate × absent days)
+                const totalAbsences = absentCount + awlCount;
+                const regularPay = Math.max(0, (monthlySalary / 2) - (dailyRate * totalAbsences));
 
                 const grossPay = regularPay + otPay + ndPay + holidayPay;
                 const netPay = grossPay;
