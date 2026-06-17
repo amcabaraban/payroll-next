@@ -40,6 +40,7 @@ export default function AttendancePage() {
         setDateTo(`${year}-${month}-15`);
     }, []);
 
+
     // 2. Fetch Holidays from Database based on selected date range
     useEffect(() => {
         const fetchHolidaysFromDB = async () => {
@@ -48,9 +49,11 @@ export default function AttendancePage() {
                 const res = await fetch(`/api/holidays?date_from=${dateFrom}&date_to=${dateTo}`);
                 const data = await res.json();
                 
-                // Adapts to standard API wrapper format
-                if (data.success && data.data) {
-                    setHolidays(data.data);
+                // Defensively check for both .rows (your schema) and .data wrappers
+                const holidayRows = data.rows || data.data;
+                
+                if (holidayRows) {
+                    setHolidays(holidayRows);
                 }
             } catch (err) {
                 console.error("Error pulling holidays:", err);
