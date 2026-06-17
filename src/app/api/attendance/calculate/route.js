@@ -288,7 +288,8 @@ export async function GET(request) {
 
         let totalRegularPay;
         if (emp.salary_type === 'monthly') {
-            totalRegularPay = (absentDays === 0 && awlDays === 0) ? Number(emp.salary) / 2 : dailyRate * presentDays;
+            const totalAbsences = absentDays + awlDays;
+            totalRegularPay = Math.max(0, (Number(emp.salary) / 2) - (dailyRate * totalAbsences));
         } else {
             totalRegularPay = calcs.reduce((s, c) => s + c.regularPay, 0);
         }
