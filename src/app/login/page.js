@@ -110,6 +110,7 @@ export default function LoginPage() {
                                 <input
                                     {...register('email')}
                                     type="email"
+                                    autoComplete="email"
                                     className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition disabled:bg-gray-50 disabled:cursor-not-allowed ${
                                         errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'
                                     }`}
@@ -136,6 +137,7 @@ export default function LoginPage() {
                                 <input
                                     {...register('password')}
                                     type="password"
+                                    autoComplete="current-password"
                                     className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition disabled:bg-gray-50 disabled:cursor-not-allowed ${
                                         errors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'
                                     }`}
