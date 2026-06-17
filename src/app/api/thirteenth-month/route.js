@@ -12,30 +12,13 @@ export async function GET(request) {
         const emp = await getRow('SELECT id, full_name, salary, salary_type FROM users WHERE id = ?', [userId]);
         if (!emp) return errorResponse('Employee not found');
 
-        const monthlySalary = Number(emp.salary);
-        
-        // Get payslips for the year
+        // Get total regular pay from actual payslips for the year
         const payslips = await query(
-            'SELECT SUM(regular_pay) as total_regular, SUM(gross_pay) as total_gross FROM payslips WHERE user_id = ? AND YEAR(period_from) = ?',
+            'SELECT SUM(regular_pay) as total_regular FROM payslips WHERE user_id = ? AND YEAR(period_from) = ?',
             [userId, year]
         );
 
-        // Get total basic pay from payslips
-        const totalBasicFromPayslips = payslips[0]?.total_regular || 0;
-        
-        // Count how many months have payslips
-        const monthsWithPayslips = await query(
-            'SELECT COUNT(DISTINCT MONTH(period_from)) as months FROM payslips WHERE user_id = ? AND YEAR(period_from) = ?',
-            [userId, year]
-        );
-        
-        const monthsCount = monthsWithPayslips[0]?.months || 0;
-        
-        // If less than 12 months, calculate remaining based on monthly salary
-        const remainingMonths = 12 - monthsCount;
-        const estimatedTotal = totalBasicFromPayslips + (monthlySalary * remainingMonths / 2); // /2 because each payslip is half-month
-        
-        const totalBasic = monthsCount > 0 ? Math.max(estimatedTotal, monthlySalary * 12) : monthlySalary * 12;
+        const totalBasic = payslips[0]?.total_regular || 0;
         const thirteenthMonth = totalBasic / 12;
 
         return successResponse({
