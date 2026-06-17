@@ -18,7 +18,9 @@ export default function AttendancePage() {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [days, setDays] = useState([]);
+    const [holidays, setHolidays] = useState([]); // Stores holidays fetched from your database
 
+    // 1. Initial Authentication & Default Date Selection
     useEffect(() => {
         const userData = localStorage.getItem('user');
         if (!userData) { router.push('/login'); return; }
@@ -38,31 +40,74 @@ export default function AttendancePage() {
         setDateTo(`${year}-${month}-15`);
     }, []);
 
+    // 2. Fetch Holidays from Database based on selected date range
+    useEffect(() => {
+        const fetchHolidaysFromDB = async () => {
+            if (!dateFrom || !dateTo) return;
+            try {
+                const res = await fetch(`/api/holidays?date_from=${dateFrom}&date_to=${dateTo}`);
+                const data = await res.json();
+                
+                // Adapts to standard API wrapper format
+                if (data.success && data.data) {
+                    setHolidays(data.data);
+                }
+            } catch (err) {
+                console.error("Error pulling holidays:", err);
+            }
+        };
+
+        fetchHolidaysFromDB();
+    }, [dateFrom, dateTo]);
+
+    // 3. Generate Calendar Grid with automated Rest Days and Holidays
     useEffect(() => {
         if (dateFrom && dateTo) {
             const daysArray = [];
             const start = new Date(dateFrom);
             const end = new Date(dateTo);
             const current = new Date(start);
+
             while (current <= end) {
-                const dateStr = current.toISOString().split('T')[0];
+                // Formatting dates cleanly using local system configurations to avoid standard ISO timezone drop-backs
+                const year = current.getFullYear();
+                const monthStr = String(current.getMonth() + 1).padStart(2, '0');
+                const dateStrNum = String(current.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${monthStr}-${dateStrNum}`;
+
                 const dayOfWeek = current.getDay();
                 const isRD = RD_DAYS.includes(dayOfWeek);
+                
+                // Scan loaded holidays for a calendar date match
+                const matchedHoliday = holidays.find(h => h.date === dateStr);
+                const isHoliday = !!matchedHoliday;
+
+                // Priority Fallback Matrix: Holiday -> Rest Day -> Regular Shift Present
+                let defaultStatus = 'present';
+                if (isHoliday) {
+                    defaultStatus = 'holiday';
+                } else if (isRD) {
+                    defaultStatus = 'rd';
+                }
+
                 daysArray.push({
                     date: dateStr,
                     day: current.toLocaleDateString('en-PH', { weekday: 'short' }),
-                    display: `${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`,
+                    display: `${monthStr}-${dateStrNum}`,
                     timeIn: '',
                     timeOut: '',
-                    status: isRD ? 'rd' : 'present',
+                    status: defaultStatus,
                     isRD: isRD,
+                    isHoliday: isHoliday,
+                    holidayName: matchedHoliday ? matchedHoliday.name : null
                 });
+
                 current.setDate(current.getDate() + 1);
             }
             setDays(daysArray);
             if (selectedEmp) loadRecordsForDays(daysArray);
         }
-    }, [dateFrom, dateTo, selectedEmp]);
+    }, [dateFrom, dateTo, selectedEmp, holidays]);
 
     const fetchEmployees = async () => {
         const res = await fetch('/api/employees');
@@ -86,7 +131,7 @@ export default function AttendancePage() {
                         ...day,
                         timeIn: record.timeIn ? formatTimeForInput(record.timeIn) : '',
                         timeOut: record.timeOut ? formatTimeForInput(record.timeOut) : '',
-                        status: record.status || day.status,
+                        status: record.status || day.status, // Database saved entries will safely override defaults
                         dtr_status: record.dtr_status || 'pending',
                         _originalStatus: record.status || day.status,
                     };
