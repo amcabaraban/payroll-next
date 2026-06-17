@@ -4,10 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { computeDeductions } from '@/lib/tax';
-const [bulkLoading, setBulkLoading] = useState(false);
-const [bulkResult, setBulkResult] = useState(null);
-const [allPayslips, setAllPayslips] = useState([]);
-const [showAllPayslips, setShowAllPayslips] = useState(false);
+
+
 
 export default function PayslipPage() {
     const [user, setUser] = useState(null);
@@ -19,6 +17,8 @@ export default function PayslipPage() {
     const [loading, setLoading] = useState(false);
     const printRef = useRef();
     const router = useRouter();
+    const [allPayslips, setAllPayslips] = useState([]);
+    const [showAllPayslips, setShowAllPayslips] = useState(false);
 
     useEffect(() => {
         const userData = localStorage.getItem('user');
