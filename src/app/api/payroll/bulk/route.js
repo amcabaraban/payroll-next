@@ -32,15 +32,12 @@ export async function POST(request) {
                 const dailyRate = (monthlySalary * 12) / 365;
                 const hourlyRate = dailyRate / 8;
 
-                // Track unique dates with records
-                const recordDates = new Set();
+                let absentCount = 0;
                 let otPay = 0;
-                let absentDays = 0;
 
                 for (const r of records) {
-                    recordDates.add(r.date);
                     if (r.status === 'absent' || r.status === 'awol' || r.status === 'awl') {
-                        absentDays++;
+                        absentCount++;
                     }
                     if (r.type === 'out' && r.timestamp) {
                         const outTime = new Date(r.timestamp);
@@ -53,14 +50,10 @@ export async function POST(request) {
                     }
                 }
 
-                // For monthly: full half-month pay if no absences, otherwise daily rate × present days
-                const presentDays = recordDates.size - absentDays;
-                let regularPay;
-                if (emp.salary_type === 'monthly' && absentDays === 0) {
-                    regularPay = monthlySalary / 2;
-                } else {
-                    regularPay = dailyRate * presentDays;
-                }
+                // Regular Pay = half month - (absent days × daily rate)
+                const halfMonthPay = monthlySalary / 2;
+                const absentDeduction = absentCount * dailyRate;
+                const regularPay = Math.max(0, halfMonthPay - absentDeduction);
 
                 const grossPay = regularPay + otPay;
                 const netPay = grossPay;
