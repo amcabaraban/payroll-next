@@ -34,7 +34,7 @@ function getHolidayRate(dateStr, holidays) {
 }
 
 function calculateDay(clocks, dailyRate, holidays) {
-    if (clocks.status === 'absent') {
+    if (clocks.status === 'absent' || clocks.status === 'Absent') {
         return { 
             status: 'Absent', regularPay: 0, overtimePay: 0, holidayPay: 0, nightDiffPay: 0, 
             lateDeduction: 0, undertimeDeduction: 0, grossPay: 0, deductions: 0, netPay: 0, 
@@ -188,41 +188,21 @@ export async function GET(request) {
         );
         if (!emp) return errorResponse('Employee not found');
 
-        const loanDeduction = { sss: 0, pagibig: 0, total: 0 };
-        let govSss = 0;
-        let govPhilhealth = 0;
-        let govPagibig = 0;
-
-        const firstDay = new Date(dateFrom).getDate();
-        const monthlySalary = Number(emp.salary) || 0;
-
-        if (firstDay <= 15) {
-            // 1. Calculate Active Loans
-            const activeLoans = await query(
-                "SELECT * FROM loans WHERE user_id = ? AND status = 'active'",
-                [userId]
-            );
-            
-            for (const loan of activeLoans) {
-                if (loan.loan_type === 'SSS') {
-                    loanDeduction.sss += Number(loan.monthly_amortization);
-                } else {
-                    loanDeduction.pagibig += Number(loan.monthly_amortization);
-                }
-                loanDeduction.total += Number(loan.monthly_amortization);
+        // Pre-build Cutoff Dates Array
+        const allCutoffDays = [];
+        const cur = new Date(dateFrom);
+        const end = new Date(dateTo);
+        while (cur <= end) {
+            const dateStr = cur.toISOString().split('T')[0];
+            if (emp.salary_type === 'monthly') {
+                allCutoffDays.push(dateStr);
+            } else {
+                if (!RD_DAYS.includes(cur.getDay())) allCutoffDays.push(dateStr);
             }
-
-            // 2. Calculate Government Contributions (Statutory Deductions)
-            const calculatedSss = (monthlySalary / 2) * 0.045;
-            govSss = Math.min(1125.00, Math.round(calculatedSss * 100) / 100);
-            govPhilhealth = Math.round(monthlySalary * 0.025 * 100) / 100;
-            govPagibig = 200.00;
+            cur.setDate(cur.getDate() + 1);
         }
-        
-        const totalGovContributions = govSss + govPhilhealth + govPagibig;
 
-        const holidays = await query('SELECT * FROM holidays');
-        
+        // Gather Attendance Records
         const records = await query(
             'SELECT * FROM attendance WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date, timestamp',
             [userId, dateFrom, dateTo]
@@ -241,29 +221,68 @@ export async function GET(request) {
             if (['VL', 'SL', 'EL', 'BL'].includes(r.status)) daily[d].status = r.status;
         }
 
-        const allCutoffDays = [];
-        const cur = new Date(dateFrom);
-        const end = new Date(dateTo);
-        while (cur <= end) {
-            const dateStr = cur.toISOString().split('T')[0];
-            if (emp.salary_type === 'monthly') {
-                allCutoffDays.push(dateStr);
-            } else {
-                if (!RD_DAYS.includes(cur.getDay())) allCutoffDays.push(dateStr);
+        // Activity Check: Ensure monthly workers have at least one active sign/approved leave on working days
+        let hasActivity = true;
+        if (emp.salary_type === 'monthly') {
+            hasActivity = false;
+            for (const date of allCutoffDays) {
+                if (!isRestDay(date)) {
+                    const dayData = daily[date];
+                    if (dayData && (dayData.hasTime || ['VL', 'SL', 'EL', 'BL'].includes(dayData.status))) {
+                        hasActivity = true;
+                        break;
+                    }
+                }
             }
-            cur.setDate(cur.getDate() + 1);
         }
 
+        const loanDeduction = { sss: 0, pagibig: 0, total: 0 };
+        let govSss = 0;
+        let govPhilhealth = 0;
+        let govPagibig = 0;
+
+        const firstDay = new Date(dateFrom).getDate();
+        const monthlySalary = Number(emp.salary) || 0;
+
+        // Process deductions only if employee is verified active
+        if (firstDay <= 15 && hasActivity) {
+            const activeLoans = await query(
+                "SELECT * FROM loans WHERE user_id = ? AND status = 'active'",
+                [userId]
+            );
+            
+            for (const loan of activeLoans) {
+                if (loan.loan_type === 'SSS') {
+                    loanDeduction.sss += Number(loan.monthly_amortization);
+                } else {
+                    loanDeduction.pagibig += Number(loan.monthly_amortization);
+                }
+                loanDeduction.total += Number(loan.monthly_amortization);
+            }
+
+            const calculatedSss = (monthlySalary / 2) * 0.045;
+            govSss = Math.min(1125.00, Math.round(calculatedSss * 100) / 100);
+            govPhilhealth = Math.round(monthlySalary * 0.025 * 100) / 100;
+            govPagibig = 200.00;
+        }
+        
+        const totalGovContributions = govSss + govPhilhealth + govPagibig;
+        const holidays = await query('SELECT * FROM holidays');
         const dailyRate = emp.salary_type === 'monthly' ? (monthlySalary * 12) / 365 : monthlySalary;
 
         const calcs = [];
         for (const date of allCutoffDays) {
             const dayData = daily[date] || { date, in: null, out: null, status: 'present' };
             
-            if (emp.salary_type === 'monthly' && isRestDay(date) && dayData.status !== 'absent') dayData.status = 'present';
-            if (dayData.status === 'present' && !dayData.in && !dayData.out && !isRestDay(date) && !['VL','SL','EL','BL'].includes(dayData.status) && !isHoliday(date, holidays)) dayData.status = 'absent';
+            if (!hasActivity) {
+                // Force completely inactive cutoff to reflect full absence uniformly
+                dayData.status = 'absent';
+            } else {
+                if (emp.salary_type === 'monthly' && isRestDay(date) && dayData.status !== 'absent') dayData.status = 'present';
+                if (dayData.status === 'present' && !dayData.in && !dayData.out && !isRestDay(date) && !['VL','SL','EL','BL'].includes(dayData.status) && !isHoliday(date, holidays)) dayData.status = 'absent';
+            }
             
-            if (emp.salary_type === 'monthly' && isRestDay(date) && dayData.status === 'present') {
+            if (emp.salary_type === 'monthly' && isRestDay(date) && dayData.status === 'present' && hasActivity) {
                 calcs.push({
                     date: new Date(date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }),
                     clockIn: '-', clockOut: '-', hours: 0, otHours: 0, ndHours: 0,
@@ -274,7 +293,7 @@ export async function GET(request) {
                 continue;
             }
             
-            if (dayData.status === 'absent') {
+            if (dayData.status === 'absent' || !hasActivity) {
                 calcs.push({
                     date: new Date(date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }),
                     clockIn: '-', clockOut: '-', hours: 0, otHours: 0, ndHours: 0,
@@ -302,8 +321,12 @@ export async function GET(request) {
 
         let totalRegularPay;
         if (emp.salary_type === 'monthly') {
-            const totalAbsences = absentDays + awlDays;
-            totalRegularPay = Math.max(0, (monthlySalary / 2) - (dailyRate * totalAbsences));
+            if (!hasActivity) {
+                totalRegularPay = 0;
+            } else {
+                const totalAbsences = absentDays + awlDays;
+                totalRegularPay = Math.max(0, (monthlySalary / 2) - (dailyRate * totalAbsences));
+            }
         } else {
             totalRegularPay = calcs.reduce((s, c) => s + c.regularPay, 0);
         }
@@ -316,8 +339,6 @@ export async function GET(request) {
         }), { overtimePay: 0, holidayPay: 0, nightDiffPay: 0, deductions: 0 });
 
         const totalGross = totalRegularPay + sums.overtimePay + sums.holidayPay + sums.nightDiffPay;
-        
-        // Final Total Deductions incorporates attendance penatiles, active loans, and statutory shares
         const totalCombinedDeductions = sums.deductions + loanDeduction.total + totalGovContributions;
         const totalNet = totalGross - totalCombinedDeductions;
 
