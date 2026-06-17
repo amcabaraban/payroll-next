@@ -7,9 +7,19 @@ export async function POST(request) {
         if (!date_from || !date_to) return errorResponse('Date range is required');
 
         const employees = await query("SELECT id, full_name, salary, salary_type FROM users WHERE role IN ('employee', 'hr')");
-
+        
         const results = [];
         let processed = 0, skipped = 0;
+
+        // Generate all days in cutoff
+        const allCutoffDays = [];
+        const cur = new Date(date_from + 'T00:00:00');
+        const end = new Date(date_to + 'T00:00:00');
+        while (cur <= end) {
+            allCutoffDays.push(cur.toISOString().split('T')[0]);
+            cur.setDate(cur.getDate() + 1);
+        }
+        const totalDays = allCutoffDays.length;
 
         for (const emp of employees) {
             try {
@@ -18,23 +28,19 @@ export async function POST(request) {
                     [emp.id, date_from, date_to]
                 );
 
-                const dailyRate = emp.salary_type === 'monthly' 
-                    ? (Number(emp.salary) * 12) / 365 
-                    : Number(emp.salary);
+                const monthlySalary = Number(emp.salary);
+                const dailyRate = (monthlySalary * 12) / 365;
+                const hourlyRate = dailyRate / 8;
 
-                let regularPay = 0, otPay = 0;
-                let presentDays = 0, absentDays = 0;
-                const processedDates = new Set();
+                // Track unique dates with records
+                const recordDates = new Set();
+                let otPay = 0;
+                let absentDays = 0;
 
                 for (const r of records) {
-                    if (!processedDates.has(r.date)) {
-                        processedDates.add(r.date);
-                        if (r.status === 'absent' || r.status === 'awol' || r.status === 'awl') {
-                            absentDays++;
-                        } else {
-                            presentDays++;
-                            regularPay += dailyRate;
-                        }
+                    recordDates.add(r.date);
+                    if (r.status === 'absent' || r.status === 'awol' || r.status === 'awl') {
+                        absentDays++;
                     }
                     if (r.type === 'out' && r.timestamp) {
                         const outTime = new Date(r.timestamp);
@@ -42,9 +48,18 @@ export async function POST(request) {
                         shiftEnd.setHours(17, 0, 0, 0);
                         if (outTime > shiftEnd) {
                             const otHours = Math.ceil(((outTime - shiftEnd) / (1000 * 60 * 60)) - 1);
-                            if (otHours > 0) otPay += otHours * (dailyRate / 8) * 1.25;
+                            if (otHours > 0) otPay += otHours * hourlyRate * 1.25;
                         }
                     }
+                }
+
+                // For monthly: full half-month pay if no absences, otherwise daily rate × present days
+                const presentDays = recordDates.size - absentDays;
+                let regularPay;
+                if (emp.salary_type === 'monthly' && absentDays === 0) {
+                    regularPay = monthlySalary / 2;
+                } else {
+                    regularPay = dailyRate * presentDays;
                 }
 
                 const grossPay = regularPay + otPay;
