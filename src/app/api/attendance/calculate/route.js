@@ -36,7 +36,7 @@ function getHolidayRate(dateStr, holidays) {
 function calculateDay(clocks, dailyRate, holidays) {
     if (clocks.status === 'absent') {
         return { 
-            status: 'Absent', regularPay: 0, overtimePay: 0, nightDiffPay: 0, 
+            status: 'Absent', regularPay: 0, overtimePay: 0, holidayPay: 0, nightDiffPay: 0, 
             lateDeduction: 0, undertimeDeduction: 0, grossPay: 0, deductions: 0, netPay: 0, 
             hours: 0, otHours: 0, ndHours: 0 
         };
@@ -45,7 +45,7 @@ function calculateDay(clocks, dailyRate, holidays) {
     if (clocks.status === 'awol' || clocks.status === 'awl') {
         return { 
             status: clocks.status === 'awol' ? 'AWOL' : 'AWL',
-            regularPay: 0, overtimePay: 0, nightDiffPay: 0, 
+            regularPay: 0, overtimePay: 0, holidayPay: 0, nightDiffPay: 0, 
             lateDeduction: 0, undertimeDeduction: 0, grossPay: 0, deductions: 0, netPay: 0, 
             hours: 0, otHours: 0, ndHours: 0 
         };
@@ -53,7 +53,7 @@ function calculateDay(clocks, dailyRate, holidays) {
 
     if (['VL', 'SL', 'EL', 'BL'].includes(clocks.status)) {
         return { 
-            status: clocks.status, regularPay: dailyRate, overtimePay: 0, nightDiffPay: 0, 
+            status: clocks.status, regularPay: dailyRate, overtimePay: 0, holidayPay: 0, nightDiffPay: 0, 
             lateDeduction: 0, undertimeDeduction: 0, grossPay: dailyRate, deductions: 0, netPay: dailyRate, 
             hours: WORKING_HOURS, otHours: 0, ndHours: 0 
         };
@@ -61,7 +61,7 @@ function calculateDay(clocks, dailyRate, holidays) {
 
     if (clocks.status === 'RD Paid') {
         return { 
-            status: 'RD Paid', regularPay: dailyRate, overtimePay: 0, nightDiffPay: 0, 
+            status: 'RD Paid', regularPay: dailyRate, overtimePay: 0, holidayPay: 0, nightDiffPay: 0, 
             lateDeduction: 0, undertimeDeduction: 0, grossPay: dailyRate, deductions: 0, netPay: dailyRate, 
             hours: 0, otHours: 0, ndHours: 0 
         };
@@ -189,9 +189,15 @@ export async function GET(request) {
         if (!emp) return errorResponse('Employee not found');
 
         const loanDeduction = { sss: 0, pagibig: 0, total: 0 };
+        let govSss = 0;
+        let govPhilhealth = 0;
+        let govPagibig = 0;
 
         const firstDay = new Date(dateFrom).getDate();
+        const monthlySalary = Number(emp.salary) || 0;
+
         if (firstDay <= 15) {
+            // 1. Calculate Active Loans
             const activeLoans = await query(
                 "SELECT * FROM loans WHERE user_id = ? AND status = 'active'",
                 [userId]
@@ -205,7 +211,15 @@ export async function GET(request) {
                 }
                 loanDeduction.total += Number(loan.monthly_amortization);
             }
+
+            // 2. Calculate Government Contributions (Statutory Deductions)
+            const calculatedSss = (monthlySalary / 2) * 0.045;
+            govSss = Math.min(1125.00, Math.round(calculatedSss * 100) / 100);
+            govPhilhealth = Math.round(monthlySalary * 0.025 * 100) / 100;
+            govPagibig = 200.00;
         }
+        
+        const totalGovContributions = govSss + govPhilhealth + govPagibig;
 
         const holidays = await query('SELECT * FROM holidays');
         
@@ -240,7 +254,7 @@ export async function GET(request) {
             cur.setDate(cur.getDate() + 1);
         }
 
-        const dailyRate = emp.salary_type === 'monthly' ? (Number(emp.salary) * 12) / 365 : Number(emp.salary);
+        const dailyRate = emp.salary_type === 'monthly' ? (monthlySalary * 12) / 365 : monthlySalary;
 
         const calcs = [];
         for (const date of allCutoffDays) {
@@ -289,7 +303,7 @@ export async function GET(request) {
         let totalRegularPay;
         if (emp.salary_type === 'monthly') {
             const totalAbsences = absentDays + awlDays;
-            totalRegularPay = Math.max(0, (Number(emp.salary) / 2) - (dailyRate * totalAbsences));
+            totalRegularPay = Math.max(0, (monthlySalary / 2) - (dailyRate * totalAbsences));
         } else {
             totalRegularPay = calcs.reduce((s, c) => s + c.regularPay, 0);
         }
@@ -302,7 +316,10 @@ export async function GET(request) {
         }), { overtimePay: 0, holidayPay: 0, nightDiffPay: 0, deductions: 0 });
 
         const totalGross = totalRegularPay + sums.overtimePay + sums.holidayPay + sums.nightDiffPay;
-        const totalNet = totalGross - sums.deductions - loanDeduction.total;
+        
+        // Final Total Deductions incorporates attendance penatiles, active loans, and statutory shares
+        const totalCombinedDeductions = sums.deductions + loanDeduction.total + totalGovContributions;
+        const totalNet = totalGross - totalCombinedDeductions;
 
         return successResponse({
             employee: emp,
@@ -316,11 +333,18 @@ export async function GET(request) {
                 totalHolidayPay: Math.round(sums.holidayPay * 100) / 100,
                 totalNightDiffPay: Math.round(sums.nightDiffPay * 100) / 100,
                 totalGrossPay: Math.round(totalGross * 100) / 100,
-                totalDeductions: Math.round(sums.deductions * 100) / 100,
+                totalDeductions: Math.round(totalCombinedDeductions * 100) / 100,
+                attendanceDeductions: Math.round(sums.deductions * 100) / 100,
                 loanDeduction: {
                     sss: loanDeduction.sss,
                     pagibig: loanDeduction.pagibig,
                     total: loanDeduction.total
+                },
+                govContributions: {
+                    sss: govSss,
+                    philhealth: govPhilhealth,
+                    pagibig: govPagibig,
+                    total: totalGovContributions
                 },
                 totalNetPay: Math.round(totalNet * 100) / 100,
             }
