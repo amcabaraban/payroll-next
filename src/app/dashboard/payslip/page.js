@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { computeDeductions } from '@/lib/tax';
+const [bulkLoading, setBulkLoading] = useState(false);
+const [bulkResult, setBulkResult] = useState(null);
 const [allPayslips, setAllPayslips] = useState([]);
 const [showAllPayslips, setShowAllPayslips] = useState(false);
 
