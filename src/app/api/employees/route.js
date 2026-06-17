@@ -1,6 +1,5 @@
 import { query } from '@/lib/db';
 import { successResponse, errorResponse } from '@/lib/response';
-import { getSession } from '@/lib/auth';
 
 // GET - List all employees (including admin)
 export async function GET(request) {
@@ -48,12 +47,10 @@ export async function POST(request) {
     try {
         const data = await request.json();
 
-        // Validate required fields
         if (!data.full_name || !data.email || !data.password) {
             return errorResponse('Name, email, and password are required');
         }
 
-        // Check if email already exists
         const existing = await query(
             'SELECT id FROM users WHERE email = ?',
             [data.email]
@@ -62,24 +59,34 @@ export async function POST(request) {
             return errorResponse('Email already exists');
         }
 
-        // Insert new employee
+        // Hash password
+        const bcrypt = await import('bcryptjs');
+        const hashedPassword = bcrypt.default.hashSync(data.password || 'default123', 10);
+
         const result = await query(
-            `INSERT INTO users (full_name, email, password, role, department, position, salary, phone, address, leave_credits) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO users (full_name, email, password, role, department, position, salary, phone, address, apply_tax, salary_type, date_hired, employment_status) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 data.full_name,
                 data.email,
-                data.password,
+                hashedPassword,
                 data.role || 'employee',
                 data.department || null,
                 data.position || null,
                 data.salary || 0,
                 data.phone || null,
                 data.address || null,
-                data.leave_credits || 0,
-                data.date_hired || null, data.employment_status || 'probationary',
+                data.apply_tax || 1,
+                data.salary_type || 'monthly',
+                data.date_hired || null,
+                data.employment_status || 'probationary',
             ]
-            
+        );
+
+        // Create leave credits for new employee
+        await query(
+            'INSERT INTO leave_credits (user_id, vl_total, sl_total, el_total, bl_total) VALUES (?, 10, 5, 5, 1)',
+            [result.insertId]
         );
 
         return successResponse(
@@ -88,7 +95,7 @@ export async function POST(request) {
         );
     } catch (error) {
         console.error('Add employee error:', error);
-        return errorResponse('Failed to add employee');
+        return errorResponse('Failed to add employee: ' + error.message);
     }
 }
 
