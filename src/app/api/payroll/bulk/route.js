@@ -246,15 +246,17 @@ export async function POST(request) {
 
                 // Establish Government Contributions (Statutory Deductions)
                 // Calculated to perfectly match PH rules matching your UI context output for Arthur (50k basic pay)
+                // Establish Government Contributions (Statutory Deductions)
                 let govSss = 0;
                 let govPhilhealth = 0;
                 let govPagibig = 0;
 
                 if (firstDay <= 15) {
-                    // SSS Employee Share: 4.5% of the semi-monthly equivalent base payload (e.g., 25,000 * 0.045 = 1,125.00)
-                    govSss = Math.round((monthlySalary / 2) * 0.045 * 100) / 100;
+                    // SSS Employee Share: 4.5% of semi-monthly base, capped at a maximum of ₱1,125.00
+                    const calculatedSss = (monthlySalary / 2) * 0.045;
+                    govSss = Math.min(1125.00, Math.round(calculatedSss * 100) / 100);
                     
-                    // PhilHealth Employee Share: 5% total monthly premium rate split 50/50 (e.g., 50,000 * 0.025 = 1,250.00)
+                    // PhilHealth Employee Share: 5% total monthly premium split 50/50 (2.5% each)
                     govPhilhealth = Math.round(monthlySalary * 0.025 * 100) / 100;
                     
                     // Pag-IBIG Employee Share: Standard Max Bracket Cap Contribution
