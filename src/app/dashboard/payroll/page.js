@@ -104,6 +104,29 @@ export default function PayrollPage() {
         }
     };
 
+    const [bulkLoading, setBulkLoading] = useState(false);
+    const [bulkResult, setBulkResult] = useState(null);
+
+    const handleBulkProcess = async () => {
+        if (!dateFrom || !dateTo) return;
+        if (!confirm(`Process payroll for ALL employees from ${dateFrom} to ${dateTo}?`)) return;
+        
+        setBulkLoading(true);
+        setBulkResult(null);
+        try {
+            const res = await fetch('/api/payroll/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date_from: dateFrom, date_to: dateTo }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setBulkResult(data.data);
+            }
+        } catch (err) { console.error(err); }
+        setBulkLoading(false);
+    };
+
     const calculatePayroll = async () => {
         if (!selectedEmp || !dateFrom || !dateTo) return;
         setLoading(true);
