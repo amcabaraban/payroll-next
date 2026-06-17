@@ -139,7 +139,7 @@ export default function AddEmployeePage() {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium mb-1">Password *</label>
-                                        <input type="password" value={form.password} onChange={(e) => setForm({...form, password: e.target.value})} className="w-full border rounded p-2" required />
+                                        <input type="password" value={form.password} onChange={(e) => setForm({...form, password: e.target.value})} autoComplete="new-password" className="w-full border rounded p-2" required />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium mb-1">Birthday</label>
