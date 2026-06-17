@@ -170,7 +170,7 @@ export default function LoginPage() {
 
                     {/* Footer */}
                     <p className="text-center text-xs text-gray-400 mt-6">
-                        Default admin: admin123@gmail.com / Admin@123
+                        Copyright &copy; {new Date().getFullYear()} Payroll Management System. All rights reserved.
                     </p>
                 </div>
             </div>
