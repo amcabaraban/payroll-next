@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import { getMailTransporter, getMailFrom } from '@/lib/mailer';
 import { getRow } from '@/lib/db';
 
 export async function POST(request) {
@@ -16,16 +16,10 @@ export async function POST(request) {
 
         const company = await getRow('SELECT * FROM company_settings ORDER BY id DESC LIMIT 1');
 
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: 'a.cabarabanjr@gmail.com',
-                pass: 'xfcy xbtw ndbq efbn',
-            },
-        });
+        const transporter = getMailTransporter();
 
         await transporter.sendMail({
-            from: `"${company?.company_name || 'Payroll System'}" <a.cabarabanjr@gmail.com>`,
+            from: `"${company?.company_name || 'Payroll System'}" <${getMailFrom()}>`,
             to: emp.email,
             subject: `Payslip - ${period_from} to ${period_to}`,
             html: `

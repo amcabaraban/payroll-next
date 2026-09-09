@@ -5,6 +5,8 @@ CREATE TABLE users (
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
+    reset_token VARCHAR(255) NULL,
+    reset_token_expires DATETIME NULL,
     role ENUM('admin', 'hr', 'employee') DEFAULT 'employee',
     department VARCHAR(50),
     position VARCHAR(50),

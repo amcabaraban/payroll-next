@@ -20,6 +20,39 @@ You can start editing the page by modifying `app/page.js`. The page auto-updates
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+# Forgot / Reset Password (2026)
+
+Forgot-password flow implemented for the Payroll Next app:
+
+- `GET  /forgot-password`  – page where the user enters their email
+- `POST /api/forgot-password` – generates a single-use reset token, stores only its
+  SHA-256 hash in `users.reset_token` (expires after 30 min), and emails a reset link
+- `GET  /reset-password?token=...` – page where the user picks a new password
+- `POST /api/reset-password` – validates the token + expiry, bcrypt-hashes the new
+  password (cost 10), clears the token
+
+## Database migration (required once)
+
+The `users` table needs two new columns. Fresh installs get them automatically from
+`setup.sql`; for existing databases run:
+
+```sql
+USE payroll_next;
+
+ALTER TABLE users
+    ADD COLUMN reset_token VARCHAR(255) NULL AFTER password,
+    ADD COLUMN reset_token_expires DATETIME NULL AFTER reset_token;
+```
+
+or import `migrations/001_add_password_reset_columns.sql` (local and production).
+
+## Email configuration
+
+Reset emails are sent through the app's shared SMTP config in `src/lib/mailer.js`,
+which reads `SMTP_USER` / `SMTP_PASS` from `.env.local` / `.env.production` and falls
+back to the Gmail account the payslip email feature uses. The reset link uses
+`NEXT_PUBLIC_APP_URL` (set it to the deployed domain, e.g. `https://payroll-next-system.vercel.app`).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
