@@ -11,13 +11,34 @@ function hashToken(token) {
     return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+function escapeHtml(value) {
+    // Prevent any markup typed into DB fields (e.g. full_name) from
+    // being interpreted as HTML inside the emailed reset page
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
 export async function POST(request) {
     try {
-        // Rate limiting check
-        const ip = request.headers.get('x-forwarded-for') || 'unknown';
+        // Rate limiting check – use the first entry of X-Forwarded-For if present
+        const ip = (request.headers.get('x-forwarded-for') || 'unknown').split(',')[0].trim() || 'unknown';
         const now = Date.now();
         const windowMs = 10 * 60 * 1000;
         const maxRequests = 3;
+
+        // Periodically prune stale entries so the map doesn't grow unbounded in
+        // long-running servers
+        if (resetRequests.size > 5000) {
+            for (const [key, stamps] of resetRequests) {
+                const kept = stamps.filter(t => now - t < windowMs);
+                if (kept.length === 0) resetRequests.delete(key);
+                else resetRequests.set(key, kept);
+            }
+        }
 
         if (!resetRequests.has(ip)) {
             resetRequests.set(ip, []);
@@ -35,7 +56,17 @@ export async function POST(request) {
         requests.push(now);
         resetRequests.set(ip, requests);
 
-        const { email } = await request.json();
+        // Body must be JSON; reject malformed payloads with 400 instead of 500
+        let email;
+        try {
+            const body = await request.json();
+            email = body?.email;
+        } catch {
+            return NextResponse.json(
+                { success: false, message: 'Invalid request body' },
+                { status: 400 }
+            );
+        }
 
         if (!email) {
             return NextResponse.json(
@@ -76,7 +107,7 @@ export async function POST(request) {
                             <p style="margin: 0;">Password Reset</p>
                         </div>
                         <div style="border: 1px solid #e5e7eb; padding: 20px; border-radius: 0 0 8px 8px;">
-                            <p>Dear <strong>${user.full_name}</strong>,</p>
+                            <p>Dear <strong>${escapeHtml(user.full_name)}</strong>,</p>
                             <p>We received a request to reset your password. Click the button below to choose a new one. This link is valid for <strong>30 minutes</strong>.</p>
                             <div style="text-align: center; margin: 30px 0;">
                                 <a href="${resetLink}"

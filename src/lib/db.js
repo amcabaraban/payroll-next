@@ -1,4 +1,25 @@
+import fs from 'fs';
 import mysql from 'mysql2/promise';
+
+// Build TLS options for remote databases (e.g. Aiven for MySQL, which
+// requires SSL). Honor DB_SSL=true; if DB_SSL_CA_FILE points to a PEM/CA
+// bundle it is used for verification, otherwise TLS is negotiated without
+// certificate verification (explicitly opt-in via DB_SSL=true).
+function buildSslOptions() {
+    const enabled = ['1', 'true', 'yes'].includes(String(process.env.DB_SSL || '').toLowerCase());
+    if (!enabled) return undefined;
+
+    if (process.env.DB_SSL_CA_FILE) {
+        try {
+            const ca = fs.readFileSync(process.env.DB_SSL_CA_FILE, 'utf8');
+            return { ca };
+        } catch (error) {
+            console.error(`⚠️ Could not read DB_SSL_CA_FILE (${process.env.DB_SSL_CA_FILE}):`, error.message);
+        }
+    }
+
+    return { rejectUnauthorized: false };
+}
 
 // Use DATABASE_URL if available, otherwise use individual env vars
 const pool = mysql.createPool(
@@ -7,6 +28,7 @@ const pool = mysql.createPool(
             uri: process.env.DATABASE_URL,
             waitForConnections: true,
             connectionLimit: 10,
+            ssl: buildSslOptions(),
         }
         : {
             host: process.env.DB_HOST || 'localhost',
@@ -19,6 +41,7 @@ const pool = mysql.createPool(
             queueLimit: 0,
             enableKeepAlive: true,
             keepAliveInitialDelay: 0,
+            ssl: buildSslOptions(),
         }
 );
 

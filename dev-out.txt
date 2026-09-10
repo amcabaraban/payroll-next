@@ -1,0 +1,10 @@
+▲ Next.js 16.2.9 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://10.0.0.26:3000
+- Environments: .env.local
+✓ Ready in 776ms
+
+○ Compiling /api/forgot-password ...
+✅ Database connected successfully
+ POST /api/forgot-password 200 in 8.5s (next.js: 4.4s, proxy.ts: 280ms, application-code: 3.8s)
+ POST /api/forgot-password 500 in 37ms (next.js: 6ms, proxy.ts: 16ms, application-code: 14ms)

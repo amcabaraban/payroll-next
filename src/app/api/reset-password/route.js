@@ -7,9 +7,54 @@ function hashToken(token) {
     return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+// Per-IP rate limiting so an attacker can't brute-force reset tokens
+const resetAttempts = new Map();
+
 export async function POST(request) {
     try {
-        const { token, password } = await request.json();
+        // Rate limiting check – first entry of X-Forwarded-For if present
+        const ip = (request.headers.get('x-forwarded-for') || 'unknown').split(',')[0].trim() || 'unknown';
+        const now = Date.now();
+        const windowMs = 10 * 60 * 1000;
+        const maxAttempts = 5;
+
+        // Prune stale entries if the map grows large
+        if (resetAttempts.size > 5000) {
+            for (const [key, stamps] of resetAttempts) {
+                const kept = stamps.filter(t => now - t < windowMs);
+                if (kept.length === 0) resetAttempts.delete(key);
+                else resetAttempts.set(key, kept);
+            }
+        }
+
+        if (!resetAttempts.has(ip)) {
+            resetAttempts.set(ip, []);
+        }
+
+        const attempts = resetAttempts.get(ip).filter(t => now - t < windowMs);
+
+        if (attempts.length >= maxAttempts) {
+            return NextResponse.json(
+                { success: false, message: 'Too many attempts. Try again in 10 minutes.' },
+                { status: 429 }
+            );
+        }
+
+        attempts.push(now);
+        resetAttempts.set(ip, attempts);
+
+        // Body must be JSON; reject malformed payloads with 400 instead of 500
+        let token, password;
+        try {
+            const body = await request.json();
+            token = body?.token;
+            password = body?.password;
+        } catch {
+            return NextResponse.json(
+                { success: false, message: 'Invalid request body' },
+                { status: 400 }
+            );
+        }
 
         if (!token || !password) {
             return NextResponse.json(
